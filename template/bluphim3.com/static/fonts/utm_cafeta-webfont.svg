@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="vi" lang="vi">
+<!--       _ _
+          (^.^)< (KRAW)
+		--(..)--
+         (__) 
+	    /(..)\
+ ~~~~~~~~~~~~~~~~~~-->
+<head>
+<title></title>
+<meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes"/>
+<meta name="title" content="" />
+<meta name="revisit-after" content="1 days" />
+<meta name="robots" content="index,follow" />
+<meta property="fb:app_id" content="711081303025670" />
+<meta property="og:site_name" content="MotChill" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://motchill.tv/theme/fonts/utm_cafeta-webfont.svg" />
+<meta property="og:title" content="" />
+<meta property="og:description" content="" />
+<meta name="description" content="" />
+<meta name="keywords" content="" />
+<meta name="csrf-token" content="RHBPVzlmc3d2U0VLeUFabTFTNkdra0RCZ3VGaE8wYUE0SVY3UUx4ZTlwR3FjZVNyazZGMFgzQVpxSWZrQkV5TQ==">
+<link rel="stylesheet" type="text/css" href="../css/owl.carousel.css" /><link rel="canonical" href="utm_cafeta-webfont.svg" /><link rel="shortcut icon" href="../../favicon.ico" type="image/x-icon" /><link href="../../../https@fonts.googleapis.com/css@family=Roboto_3A400,300,500" rel="stylesheet" type="text/css"><link rel="stylesheet" type="text/css" href="../css/font-face.css@v=1.3.1" /><link rel="stylesheet" type="text/css" href="../css/font-awesome.css"/><link rel="stylesheet" type="text/css" href="../css/bootstrap.min.css"/><link rel="stylesheet" type="text/css" href="../css/jquery-ui.min.css"/><link rel="stylesheet" type="text/css" href="../css/default.css@v=0.3.9"/><link rel="stylesheet" type="text/css" href="../css/styles.css@v=1.1.9"/><link rel="stylesheet" type="text/css" href="../css/responsive.css@v=1.0.5"/><script type="text/javascript" src="../js/jquery.min.js"></script><script type="text/javascript" src="../js/jquery.slimscroll.min.js"></script><script type="text/javascript" src="../js/bootstrap2.min.js"></script><script type="text/javascript" src="../js/jquery-ui.min.js"></script><script type="text/javascript" src="../js/jquery.lazyload.min.js"></script><script type="text/javascript" src="../js/jquery.core.min.js"></script><script type="text/javascript" src="../js/actions.js@_v=1.0.0"></script><script type="text/javascript" src="../js/functions.js@v=2.0.1"></script><script type="text/javascript" src="../js/js.cookie.js@v=2.1"></script>
+<script>var DC_URL = '../../../https@dc.mpapis.xyz';</script>
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="../../../https@www.googletagmanager.com/gtag/js@id=UA-126638761-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-126638761-1');
+</script>	
+<script type="text/javascript" src="../../../https@ax.mpapis.xyz/tags/js@id=motchill"></script>
+<script type="text/javascript" async="false" src="../js/efw.js@v2.0.1"></script>
+<script type="text/javascript" src="../js/facebook.sdk.js@3.0.2"></script>
+<style> 
+body, html {
+    background-color: #02080F;
+}
+#header {
+    background: #333333;
+}
+.main-menu {
+    background: #2d2d2d;
+}
+.main-menu .menu-item.active>a, .main-menu .menu-item a:hover {
+    color: #c58560;
+}
+.title-box .tophot,.right-content .block .caption {
+    color: #da966e;
+}
+.main-menu .menu-item .sub-menu {
+    background-color: #2d2d2d;
+}
+.list-films .item .icon-play,.list-films .label-quality {
+    background: #522e75;
+}
+.list-films .label-quality:after {
+    border-left: 10px solid #522e75;
+}
+#film_hot .item .label, #film_related .item .label, .film-new .item .label {
+    background: #A3765D;
+    border-bottom: 2px solid #96674f
+}
+.list-films.film-new .item .name {
+    background: #181818;
+}
+.list-film li:nth-child(even) {
+    background: rgb(24 24 24);
+}
+.title-box .tab.active,.title-box .tab:hover {
+    color: #da966e;
+    border-bottom: 2px solid #907863;
+}
+.most-view .list-film .item .number-rank {
+    background: #c58560;
+}
+.breadcrumbs {
+    background: #181818;
+}
+#page-info .blockbody .title {
+    color: #ff9658;
+}
+.btn-download-link {
+
+}
+.btn-stream-link {
+
+}
+.dinfo .film-status {
+}
+#page-info .latest-episode>a:hover, .list-episode>a:hover, .list-episode>a.current,ul.server-backup li span.active, ul.server-backup li span:hover {
+    background: #c58560;
+}
+
+#player-video .details .name h1 a,#player-video .details .name span {
+    color: #da966e;
+}
+.film-note {
+    border: 1px solid #e8a568;
+    background: #181818;
+}
+#player-video .bottom-content {
+    background: #181818;
+}
+.mp-tips {
+    color: #fff;
+}
+#suggestions ul.autocomplete-list li span,#suggestions ul.autocomplete-list li strong,#suggestions ul.autocomplete-list li.last a {
+    color: #da966e;
+}
+.most-view .list-film .item a:hover, .list-film .film-item-ver .name a:hover {
+    color: #da966e;
+}
+.most-view .tabs .tab:hover {
+    background: #333;
+}
+#footer {
+    color: #848484;
+    background: #2d2d2d;
+}
+#footer .info {
+    background: #353535;
+}
+</style>
+</head>
+<body>
+<div id="page">
+<div id="header">
+<div class="container">
+		  
+<div class="top"><div class="left logo" style="box-shadow: 0px 1px 3px rgba(0,0,0,0.2);"><a href="../../default.htm" title="Home"><img alt="motphim.net" title="Mọt phim" src="../../motchill.png@v1.0.2" style="height: 60px;margin-bottom: -55px" /></a></div><div class="right-header"><div class="search-container relative"><form id="form_search" method="GET" action="javascript:do_search();"><input type="text" id="keyword" autocomplete="off" placeholder="V.d: tên phim, tên diễn viên..." /><i class="fa fa-search" onclick="$('#form_search').submit();"></i><div style="display: block;" id="suggestions" class="top-search-box"></div></form></div><div id="box-user-menu" class="actions-user right"><ul><li><i class="fa fa-sign-in"></i><a onclick="alert('Chức năng này đang cập nhật');return false;">Đăng nhập</a></li><li><i class="fa fa-users"></i><a onclick="alert('Chức năng này đang cập nhật');return false;">Đăng ký</a></li><li><i class="fa fa-bookmark-o"></i><a onclick="alert('Chức năng này đang cập nhật');return false;">Bookmark</a></li></ul></div><div class="suggest-dns"><p>Công cụ tìm kiếm phim.</p></div></div><div class="clear"></div></div>   
+                 
+</div>
+<div class="main-menu">
+<ul class="container"><li class="menu-item active"><a title="" href="../../default.htm">Trang chủ</a></li><li class="menu-item "><a>Thể loại</a><ul class="sub-menu span-4 absolute"><li class="sub-menu-item"><a title="Phim cổ trang - thần thoại" href="../../the-loai/co-trang-than-thoai.html">Cổ Trang - Thần Thoại</a></li><li class="sub-menu-item"><a title="Phim võ thuật - kiếm hiệp" href="../../the-loai/vo-thuat-kiem-hiep.html">Võ Thuật - Kiếm Hiệp</a></li><li class="sub-menu-item"><a title="Phim phiêu lưu - hành động" href="../../the-loai/phieu-luu-hanh-dong.html">Phiêu Lưu - Hành Động</a></li><li class="sub-menu-item"><a title="Phim tâm lý - tình cảm" href="../../the-loai/tam-ly-tinh-cam.html">Tâm Lý - Tình Cảm</a></li><li class="sub-menu-item"><a title="Phim hoạt hình" href="../../the-loai/hoat-hinh.html">Hoạt Hình</a></li><li class="sub-menu-item"><a title="Phim khoa học - viễn tưởng" href="../../the-loai/khoa-hoc-vien-tuong.html">Khoa Học - Viễn Tưởng</a></li><li class="sub-menu-item"><a title="Phim hình sự - chiến tranh" href="../../the-loai/hinh-su-chien-tranh.html">Hình Sự - Chiến Tranh</a></li><li class="sub-menu-item"><a title="Phim tài liệu - khám phá" href="../../the-loai/tai-lieu-kham-pha.html">Tài Liệu - Khám Phá</a></li><li class="sub-menu-item"><a title="Phim văn hóa - tâm linh" href="../../the-loai/van-hoa-tam-linh.html">Văn Hóa - Tâm Linh</a></li><li class="sub-menu-item"><a title="Phim hài hước" href="../../the-loai/hai-huoc.html">Hài Hước</a></li><li class="sub-menu-item"><a title="Phim thể thao - âm nhạc" href="../../the-loai/the-thao-am-nhac.html">Thể Thao - Âm Nhạc</a></li><li class="sub-menu-item"><a title="Phim kinh dị - ma" href="../../the-loai/kinh-di-ma.html">Kinh Dị - Ma</a></li><li class="sub-menu-item"><a title="Phim gia đình - học đường" href="../../the-loai/gia-dinh-hoc-duong.html">Gia Đình - Học Đường</a></li><li class="sub-menu-item"><a title="Phim tv show" href="../../the-loai/tv-show.html">TV Show</a></li><li class="sub-menu-item"><a title="Phim chiếu rạp" href="../../the-loai/phim-chieu-rap.html">Phim Chiếu Rạp</a></li><li class="sub-menu-item"><a title="Phim bí ẩn - siêu nhiên" href="../../the-loai/bi-an-sieu-nhien.html">Bí Ẩn - Siêu Nhiên</a></li><li class="sub-menu-item"><a title="Phim thuyết minh" href="../../the-loai/thuyet-minh.html">Thuyết Minh</a></li><li class="sub-menu-item"><a title="Phim lồng tiếng" href="../../the-loai/long-tieng.html">Lồng Tiếng</a></li><li class="sub-menu-item"><a title="Phim boy love" href="../../the-loai/boy-love.html">Boy Love</a></li></ul></li><li class="menu-item "><a>Quốc gia</a><ul class="sub-menu span-2 absolute"><li class="sub-menu-item"><a title="Phim việt nam" href="../../quoc-gia/viet-nam.html">Việt Nam</a></li><li class="sub-menu-item"><a title="Phim trung quốc" href="../../quoc-gia/trung-quoc.html">Trung Quốc</a></li><li class="sub-menu-item"><a title="Phim hàn quốc" href="../../quoc-gia/han-quoc.html">Hàn Quốc</a></li><li class="sub-menu-item"><a title="Phim thái lan" href="../../quoc-gia/thai-lan.html">Thái Lan</a></li><li class="sub-menu-item"><a title="Phim hồng kông" href="../../quoc-gia/hong-kong.html">Hồng Kông</a></li><li class="sub-menu-item"><a title="Phim âu mỹ" href="../../quoc-gia/au-my.html">Âu - Mỹ</a></li><li class="sub-menu-item"><a title="Phim đài loan" href="../../quoc-gia/dai-loan.html">Đài Loan</a></li><li class="sub-menu-item"><a title="Phim nhật bản" href="../../quoc-gia/nhat-ban.html">Nhật Bản</a></li><li class="sub-menu-item"><a title="Phim ấn độ" href="../../quoc-gia/an-do.html">Ấn Độ</a></li><li class="sub-menu-item"><a title="Phim canada" href="../../quoc-gia/canada.html">Canada</a></li><li class="sub-menu-item"><a title="Phim quốc gia khác" href="../../quoc-gia/khac.html">Quốc gia khác</a></li></ul></li><li class="menu-item "><a title="Phim mới" href="../../phim-moi/default.htm">Phim mới</a><ul class="sub-menu absolute"><li class="sub-menu-item"><a title="Phim mới 2022" href="../../phim-moi/@year=2022">Phim 2022</a></li><li class="sub-menu-item"><a title="Phim mới 2021" href="../../phim-moi/@year=2021">Phim 2021</a></li><li class="sub-menu-item"><a title="Phim mới 2020" href="../../phim-moi/@year=2020">Phim 2020</a></li><li class="sub-menu-item"><a title="Phim mới 2019" href="../../phim-moi/@year=2019">Phim 2019</a></li><li class="sub-menu-item"><a title="Phim mới 2018" href="../../phim-moi/@year=2018">Phim 2018</a></li><li class="sub-menu-item"><a title="Phim 2017" href="../../phim-moi/@year=2017">Phim 2017</a></li><li class="sub-menu-item"><a title="Phim 2016" href="../../phim-moi/@year=2016">Phim 2016</a></li><li class="sub-menu-item"><a title="Phim 2015" href="../../phim-moi/@year=2015">Phim 2015</a></li><li class="sub-menu-item"><a title="Phim 2014" href="../../phim-moi/@year=2014">Phim 2014</a></li><li class="sub-menu-item"><a title="Phim 2013" href="../../phim-moi/@year=2013">Phim 2013</a></li></ul></li><li class="menu-item "><a title="Phim bộ" href="../../phim-bo/default.htm">Phim bộ</a></li><li class="menu-item "><a title="Phim lẻ" href="../../phim-le/default.htm">Phim lẻ</a></li><li class="menu-item "><a title="Phim thuyết minh" href="../../phim-thuyet-minh.html">Phim thuyết minh</a></li><li class="menu-item "><a title="Phim chiếu rạp" href="../../phim-chieu-rap.html">Phim chiếu rạp</a></li><li class="menu-item "><a title="TV Show" href="../../the-loai/tv-show.html">TV Show</a></li></ul>
+</div>
+</div>
+<script>
+   function do_search() {
+		var keyword = $("#keyword").val();
+		if (keyword != '') {
+			keyword = keyword.replace(/\s+/g, '+');
+			keyword = keyword.toLowerCase();
+			window.location.href = '../../tim-kiem/' + keyword + '/';
+		}
+		return false;
+	}   
+	function mdo_search() {
+		var keyword = $("#mkeyword").val();
+		if (keyword != '') {
+			keyword = keyword.replace(/\s+/g, '+');
+			keyword = keyword.toLowerCase();
+			window.location.href = '../../tim-kiem/' + keyword + '/';
+		}
+		return false;
+	}
+
+
+   $(document).ready(function(){
+       var searchValue = "";
+       var lastTimeQuery = null;
+       var lastQuery = "";
+       var timer = null;
+       var xTriggered = 0;
+       var frirstpos = 0;
+       var lastpos = 0;
+       var offs = 0;
+       function suggesstionFunc() {
+           $.ajax({
+               url: DC_URL+"/suggest.html",
+               data: {
+                   q: $("#keyword").val()
+               }
+           }).done(function(data) {
+               $("#suggestions").html(data).show();
+            });
+
+       }
+       $('#keyword').blur(function (event) {
+           setTimeout("$('#suggestions').fadeOut(50);", 300);
+       });
+       $('#keyword').keyup(function (e) {
+           if(e.keyCode == 38 || e.keyCode == 40 || e.keyCode == 13) {
+               if ($('#suggestions').css('display') != 'block')
+                   return;
+               var allItem = $('#suggestions li a');
+               var activeItem = $('#suggestions li a.active');
+               var totalItem = allItem.size();
+               var firstItem = allItem.eq(0);
+               var lastItem = allItem.eq(totalItem - 1);
+               var idx = allItem.index(activeItem);
+
+               if (!totalItem) {
+                   return;
+               }
+               switch (e.keyCode) {
+                   case 38:
+                       if (idx == -1) {
+                           lastItem.addClass('active');
+                       } else {
+                           var prevItem = allItem.eq(idx - 1);
+                           activeItem.removeClass('active');
+                           prevItem.addClass('active');
+                       }
+                       break;
+                   case 40:
+                       if (idx == -1) {
+                           firstItem.addClass('active');
+                       } else if (idx == (totalItem - 1)) {
+                           // Item cuoi cung
+                           activeItem.removeClass('active');
+                           firstItem.addClass('active');
+                       } else {
+                           var nextItem = allItem.eq(idx + 1);
+                           activeItem.removeClass('active');
+                           nextItem.addClass('active');
+                       }
+
+                       break;
+                   case 13:
+                       if (idx >= 0 && activeItem.attr('href') != "") {
+                           $(location).attr('href', activeItem.attr('href'));
+                       } else {
+                           return true;
+                       }
+               }
+               return false;
+           } else {
+               var timerCallback = function () {
+                   suggesstionFunc();
+               };
+               clearTimeout(timer);
+               timer = setTimeout(timerCallback, 200);
+           }
+
+       });
+       function msuggesstionFunc() {
+           $.ajax({
+               url: DC_URL+"/suggest.html",
+               data: {
+                   q: $("#mkeyword").val()
+               }
+           }).done(function(data) {
+                       $("#msuggestions").html(data).show();
+                   });
+
+       }
+ $('#mkeyword').keyup(function (e) {
+           if(e.keyCode == 38 || e.keyCode == 40 || e.keyCode == 13) {
+               if ($('#msuggestions').css('display') != 'block')
+                   return;
+               var allItem = $('#msuggestions li a');
+               var activeItem = $('#msuggestions li a.active');
+               var totalItem = allItem.size();
+               var firstItem = allItem.eq(0);
+               var lastItem = allItem.eq(totalItem - 1);
+               var idx = allItem.index(activeItem);
+
+               if (!totalItem) {
+                   return;
+               }
+               switch (e.keyCode) {
+                   case 38:
+                       if (idx == -1) {
+                           lastItem.addClass('active');
+                       } else {
+                           var prevItem = allItem.eq(idx - 1);
+                           activeItem.removeClass('active');
+                           prevItem.addClass('active');
+                       }
+                       break;
+                   case 40:
+                       if (idx == -1) {
+                           firstItem.addClass('active');
+                       } else if (idx == (totalItem - 1)) {
+                           // Item cuoi cung
+                           activeItem.removeClass('active');
+                           firstItem.addClass('active');
+                       } else {
+                           var nextItem = allItem.eq(idx + 1);
+                           activeItem.removeClass('active');
+                           nextItem.addClass('active');
+                       }
+
+                       break;
+                   case 13:
+                       if (idx >= 0 && activeItem.attr('href') != "") {
+                           $(location).attr('href', activeItem.attr('href'));
+                       } else {
+                           return true;
+                       }
+               }
+               return false;
+           } else {
+               var timerCallback = function () {
+                   msuggesstionFunc();
+               };
+               clearTimeout(timer);
+               timer = setTimeout(timerCallback, 200);
+           }
+
+       });
+
+   })
+</script>
+<script>//if(!Cookies.get('_d_id')){var xhr = new XMLHttpRequest();xhr.open("GET", '../../collect', false );xhr.send(null);}</script>
+<div id="content">
+<div class="main-content">
+   <div class="container">
+
+      <div class="left-content" id="page-info">
+         <div class="list-films film-new">     
+         
+ <section id="fof" class="clear">
+      <div class="positioned">
+        <h1>Lỗi 404 !</h1>
+        <p>Trang bạn yêu cầu không tồn tại hoặc đã bị xóa !</p>
+      </div>
+    </section>
+	
+            <div class="clear"></div> 
+         </div>
+
+      </div>
+      <div class="right-content">
+		<!--<div class="block" style="margin: 0;padding: 20px 10px">
+	<div class="fb-page" data-href="https://www.facebook.com/pages.motphim.net/" data-hide-cover="false" data-show-facepile="true" data-show-posts="false"><div class="fb-xfbml-parse-ignore"><blockquote cite="https://www.facebook.com/facebook"><a href="https://www.facebook.com/pages.motphim.net">Motphim Fanpage</a></blockquote></div></div>
+</div>-->
+<div class="trailer block">
+   <div class="caption">
+      <span class="uppercase">Phim sắp chiếu</span>
+   </div>
+   <ul class="list-film">
+			<li class="film-item-ver"><a href="../../phim/ninh-an-nhu-mong-10442.html" title="Ninh An Như Mộng"><img class="avatar" title="Ninh An Như Mộng" alt="Ninh An Như Mộng" src="../../../https@mp-focus-opensocial.googleusercontent.com/gadgets/proxy@container=focus&refresh=604800&url=https_253A_252F_252Fi0.wp.com_252Fimage.mpapis.xyz_252Fposter_252Fninh-an-nhu-mong-10442.jpg_253F1667374663"/></a><div class="title"><p class="name"><a href="../../phim/ninh-an-nhu-mong-10442.html" title="Ninh An Như Mộng 2023">Ninh An Như Mộng</a></p><p class="real-name">2023</p></div><p class="star" data-rating="9.3"></p></li><li class="film-item-ver"><a href="../../phim/ngoc-cot-dao-10296.html" title="Ngọc Cốt Dao"><img class="avatar" title="Ngọc Cốt Dao" alt="Ngọc Cốt Dao" src="../../../https@mp-focus-opensocial.googleusercontent.com/gadgets/proxy@container=focus&refresh=604800&url=https_253A_252F_252Fi0.wp.com_252Fimage.mpapis.xyz_252Fposter_252Fngoc-cot-dao-10296.jpg_253F1655830726"/></a><div class="title"><p class="name"><a href="../../phim/ngoc-cot-dao-10296.html" title="Ngọc Cốt Dao 2022">Ngọc Cốt Dao</a></p><p class="real-name">2022</p></div><p class="star" data-rating="8.9"></p></li><li class="film-item-ver"><a href="../../phim/tan-than-dieu-dai-hiep-6426.html" title="Tân Thần Điêu Đại Hiệp"><img class="avatar" title="Tân Thần Điêu Đại Hiệp" alt="Tân Thần Điêu Đại Hiệp" src="../../../https@mp-focus-opensocial.googleusercontent.com/gadgets/proxy@container=focus&refresh=604800&url=https_253A_252F_252Fi0.wp.com_252Fimage.mpapis.xyz_252Fposter_252Ftan-than-dieu-dai-hiep-6426.jpg_253F1632385998"/></a><div class="title"><p class="name"><a href="../../phim/tan-than-dieu-dai-hiep-6426.html" title="Tân Thần Điêu Đại Hiệp 2019">Tân Thần Điêu Đại Hiệp</a></p><p class="real-name">2019</p></div><p class="star" data-rating="7"></p></li><li class="film-item-ver"><a href="../../phim/trieu-ca-6529.html" title="Triều Ca"><img class="avatar" title="Triều Ca" alt="Triều Ca" src="../../../https@mp-focus-opensocial.googleusercontent.com/gadgets/proxy@container=focus&refresh=604800&url=https_253A_252F_252Fi0.wp.com_252Fimage.mpapis.xyz_252Fposter_252Ftrieu-ca-6529.jpg_253F1555435621"/></a><div class="title"><p class="name"><a href="../../phim/trieu-ca-6529.html" title="Triều Ca 2019">Triều Ca</a></p><p class="real-name">2019</p></div><p class="star" data-rating="7.4"></p></li>  
+               
+   </ul>
+</div>
+<script src="../js/jquery.raty.js"></script>
+<script>
+    $(document).ready(function(){
+        $('.star').raty({
+            readOnly : true,
+            numberMax : 5,
+            half  : true,
+            score: function() {
+                return $(this).attr('data-rating');
+            },
+			hints:["bad","poor","regular","good","gorgeous"],
+            space : false
+        });  
+    })
+</script>
+<div class="most-view block">
+   <div class="caption">
+      <span class="uppercase">Trending</span>
+   </div>
+   <div class="tabs">
+      <div data-id="d" class="tab active">Ngày</div>
+      <div data-id="w" class="tab">Tuần</div>
+      <div data-id="m" class="tab">Tháng</div>
+   </div>
+   <div class="clear"></div>
+   <ul class="list-film">
+        <li class="item"><span class="number-rank absolute">1</span><span><a href="../../phim/vinh-quang-trong-thu-han-phan-2-11003.html" title="Vinh Quang Trong Thù Hận (Phần 2)">Vinh Quang Trong Thù Hận (Phần 2)</a></span><div class="count_view">33 lượt quan tâm</div></li><li class="item"><span class="number-rank absolute">2</span><span><a href="../../phim/vinh-quang-trong-thu-han-10765.html" title="Vinh Quang Trong Thù Hận">Vinh Quang Trong Thù Hận</a></span><div class="count_view">16 lượt quan tâm</div></li><li class="item"><span class="number-rank absolute">3</span><span><a href="../../phim/tinh-lac-ngung-thanh-duong-j3sm-10992.html" title="Tinh Lạc Ngưng Thành Đường">Tinh Lạc Ngưng Thành Đường</a></span><div class="count_view">8 lượt quan tâm</div></li><li class="item"><span class="number-rank absolute">4</span><span><a href="../../phim/nghe-noi-em-thich-toi-10954.html" title="Nghe Nói Em Thích Tôi">Nghe Nói Em Thích Tôi</a></span><div class="count_view">6 lượt quan tâm</div></li><li class="item"><span class="number-rank absolute">5</span><span><a href="../../phim/trung-tu-z4nl-10979.html" title="Trùng Tử">Trùng Tử</a></span><div class="count_view">3 lượt quan tâm</div></li><li class="item"><span class="number-rank absolute">6</span><span><a href="../../phim/hoa-mua-ha-10964.html" title="Hoa Mùa Hạ">Hoa Mùa Hạ</a></span><div class="count_view">3 lượt quan tâm</div></li><li class="item"><span class="number-rank absolute">7</span><span><a href="../../phim/cuu-tieu-han-da-noan-11017.html" title="Cửu Tiêu Hàn Dạ Noãn">Cửu Tiêu Hàn Dạ Noãn</a></span><div class="count_view">3 lượt quan tâm</div></li><li class="item"><span class="number-rank absolute">8</span><span><a href="../../phim/big-mouth-10472.html" title="Big Mouth">Big Mouth</a></span><div class="count_view">2 lượt quan tâm</div></li><li class="item"><span class="number-rank absolute">9</span><span><a href="../../phim/nhung-nguoi-sot-lai-10902.html" title="Những Người Sót Lại">Những Người Sót Lại</a></span><div class="count_view">2 lượt quan tâm</div></li><li class="item"><span class="number-rank absolute">10</span><span><a href="../../phim/doi-voi-toi-anh-ay-la-nguoi-nguy-hiem-10889.html" title="Đối Với Tôi Anh Ấy Là Người Nguy Hiểm">Đối Với Tôi Anh Ấy Là Người Nguy Hiểm</a></span><div class="count_view">2 lượt quan tâm</div></li>    
+   </ul>
+</div> <!-- End most-view -->
+
+<script>
+   $(document).ready(function(){
+      $(".most-view .tab").click(function(){
+         var type = $(this).attr('data-id');
+         $(".most-view .list-film").html("");
+         $(".most-view .tab").removeClass('active');
+         $(this).addClass('active');
+         var data={'action':'top_viewed','type':type}
+         var success_fnc = function(data){
+            $(".most-view .list-film").html(data);   
+         }
+         handleAjax(DC_URL+'/ajax.html','POST','',data,success_fnc);
+      })
+   })
+</script><div class="block tagcloud">
+   <div class="caption">
+      <span class="uppercase">Từ khoá nổi bật</span>
+   </div>
+   <ul class="list-tags">
+         </ul>
+</div>
+ 			
+     </div>	
+   </div>
+</div></div><!-- content -->
+<a href="#" class="btn-contact" title="inbox"><i class="fa fa-envelope-o"></i></a><div id="footer"><div class="container"><div class="desc"><p><b><a href="../../default.htm">Xem phim online</a></b> miễn phí chất lượng cao với phụ đề tiếng việt - thuyết minh - lồng tiếng. Mọt phim có nhiều thể loại phim phong phú, đặc sắc, nhiều bộ phim hay nhất - mới nhất.</p><p>Website motphim.net với giao diện trực quan, thuận tiện, tốc độ tải nhanh, thường xuyên cập nhật các bộ phim mới hứa hẹn sẽ đem lại những trải nghiệm tốt cho người dùng.</p></div><div class="info"><!--contact--><div class="column"><div class="heading">Quy định</div><ul><li><a href="#">Điều khoản chung</a></li><li><a href="#">Chính sách riêng tư</a></li></ul></div><div class="column"><div class="heading">Giới thiệu</div><ul><li><a href="#">Trang chủ</a></li><li><a href="#">Facebook</a></li></ul></div></div></div></div> 
+<div id="fb-root"></div>
+<script async defer crossorigin="anonymous" src="../../../https@connect.facebook.net/vi_VN/sdk.js#xfbml=1&version=v7.0&appId=711081303025670&autoLogAppEvents=1"></script>
+</div>	
+<script type="text/javascript" src="../../../https@ax.mpapis.xyz/loader.js@v=1.0.1"></script>
+<script>
+var AxSugar = new AxSugar(adxSugar);
+if (sessionStorage && ['VN', 'PH'].indexOf(sessionStorage.getItem("uc")) != -1) AxSugar.init();
+</script>
+<script>document.addEventListener("click",function(){try{$("#preload").length&&$("#preload").fadeOut(),$("#preload-2").length&&$("#preload-2").fadeOut()}catch(e){}});</script>
+</body>
+</html>
