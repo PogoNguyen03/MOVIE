@@ -117,10 +117,11 @@ class Base extends All
         }
         elseif($popedom==2 && in_array($pre,['art','actor','website'])){
 
-            if($res===false && (empty($group['group_popedom'][$type_id][2]) || $trysee==0)){
-                return ['code'=>3001,'msg'=>lang('controller/no_popedom'),'trysee'=>0];
-            }
-            elseif($group['group_id']<3 && $points>0  ){
+            // if($res===false && (empty($group['group_popedom'][$type_id][2]) || $trysee==0)){
+            //     return ['code'=>3001,'msg'=>lang('controller/no_popedom'),'trysee'=>0];
+            // }
+            // else
+            if($group['group_id']<3 && $points>0  ){
                 $mid = mac_get_mid($pre);
                 $where=[];
                 $where['ulog_mid'] = $mid;
@@ -141,10 +142,11 @@ class Base extends All
             }
         }
         elseif($popedom==3){
-            if($res===false && (empty($group['group_popedom'][$type_id][5]) || $trysee==0)){
-                return ['code'=>3001,'msg'=>lang('controller/no_popedom'),'trysee'=>0];
-            }
-            elseif($group['group_id']<3 && empty($group['group_popedom'][$type_id][3]) && !empty($group['group_popedom'][$type_id][5]) && $trysee>0){
+            // if($res===false && (empty($group['group_popedom'][$type_id][5]) || $trysee==0)){
+            //     return ['code'=>3001,'msg'=>lang('controller/no_popedom'),'trysee'=>0];
+            // }
+            // else
+            if($group['group_id']<3 && empty($group['group_popedom'][$type_id][3]) && !empty($group['group_popedom'][$type_id][5]) && $trysee>0){
                 return ['code'=>3002,'msg'=>lang('controller/in_try_see'),'trysee'=>$trysee];
             }
             elseif($group['group_id']<3 && $points>0  ){
@@ -168,9 +170,9 @@ class Base extends All
             }
         }
         else{
-            if($res===false){
-                return ['code'=>1001,'msg'=>lang('controller/no_popedom')];
-            }
+            // if($res===false){
+            //     return ['code'=>1001,'msg'=>lang('controller/no_popedom')];
+            // }
             if($popedom == 4){
                 if( $group['group_id'] ==1 && $points>0){
                     return ['code'=>4001,'msg'=>lang('controller/charge_data'),'trysee'=>0];
