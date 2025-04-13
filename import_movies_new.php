@@ -122,6 +122,59 @@ function normalizeSlug($text) {
     return $text;
 }
 
+// Function to determine type_id based on movie information
+function determineTypeId($category) {
+    if (!is_array($category)) {
+        return 1; // Default to "Phim bộ" if category is not an array
+    }
+    
+    $isAnimated = false;
+    $isTVShow = false;
+    $isSeries = false;
+    $isMovie = false;
+    
+    foreach ($category as $group) {
+        if (isset($group['group'])) {
+            $groupName = strtolower($group['group']['name']);
+            
+            // Check for "Định dạng" group
+            if ($groupName === 'định dạng' && isset($group['list'])) {
+                foreach ($group['list'] as $item) {
+                    $formatName = strtolower($item['name']);
+                    if ($formatName === 'phim bộ') {
+                        $isSeries = true;
+                    } elseif ($formatName === 'phim lẻ') {
+                        $isMovie = true;
+                    } elseif ($formatName === 'tv shows') {
+                        $isTVShow = true;
+                    }
+                }
+            }
+            
+            // Check for "Thể loại" group to identify animations
+            if ($groupName === 'thể loại' && isset($group['list'])) {
+                foreach ($group['list'] as $item) {
+                    $genreName = strtolower($item['name']);
+                    if ($genreName === 'hoạt hình') {
+                        $isAnimated = true;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Determine type_id based on the checks
+    if ($isAnimated) {
+        return 3; // Hoạt hình
+    } elseif ($isTVShow) {
+        return 4; // TV shows
+    } elseif ($isMovie) {
+        return 2; // Phim lẻ
+    } else {
+        return 1; // Default to "Phim bộ"
+    }
+}
+
 // Function to fetch movie details from API
 function fetchMovieDetails($slug) {
     $url = API_BASE_URL . "/film/" . $slug;
@@ -149,6 +202,9 @@ function importMovieToDB($movie, $pdo) {
         // Convert time to minutes
         $duration = convertTimeToMinutes($movie['time']);
         
+        // Determine type_id based on movie information
+        $typeId = determineTypeId($movie['category']);
+        
         // Prepare episode data
         $episodeData = [];
         foreach ($episodeInfo as $episode) {
@@ -169,7 +225,8 @@ function importMovieToDB($movie, $pdo) {
             vod_down_url, vod_time, vod_time_add, vod_time_hits, vod_time_make, 
             vod_douban_id, vod_douban_score, vod_reurl, vod_rel_vod, vod_rel_art, 
             vod_pwd, vod_pwd_url, vod_pwd_play, vod_pwd_play_url, vod_pwd_down, 
-            vod_pwd_down_url, vod_plot, vod_plot_name, vod_plot_detail, vod_status
+            vod_pwd_down_url, vod_plot, vod_plot_name, vod_plot_detail, vod_status,
+            vod_version, type_id
         ) VALUES (
             :vod_name, :vod_sub, :vod_en, :vod_tag, :vod_class, :vod_pic, :vod_pic_thumb, 
             :vod_actor, :vod_director, :vod_writer, :vod_behind, :vod_content, :vod_blurb,
@@ -183,7 +240,8 @@ function importMovieToDB($movie, $pdo) {
             :vod_down_url, :vod_time, :vod_time_add, :vod_time_hits, :vod_time_make, 
             :vod_douban_id, :vod_douban_score, :vod_reurl, :vod_rel_vod, :vod_rel_art, 
             :vod_pwd, :vod_pwd_url, :vod_pwd_play, :vod_pwd_play_url, :vod_pwd_down, 
-            :vod_pwd_down_url, :vod_plot, :vod_plot_name, :vod_plot_detail, :vod_status
+            :vod_pwd_down_url, :vod_plot, :vod_plot_name, :vod_plot_detail, :vod_status,
+            :vod_version, :type_id
         )";
         
         $stmt = $pdo->prepare($sql);
@@ -204,16 +262,16 @@ function importMovieToDB($movie, $pdo) {
         
         // Truncate description for vod_blurb
         $blurb = !empty($movie['description']) ? $movie['description'] : 'Đang cập nhật';
-        $maxLength = 100; // Giới hạn độ dài tối đa
+        $maxLength = 255; // Giới hạn độ dài tối đa là 255 ký tự
         
         // Cắt chuỗi an toàn với UTF-8
         if (mb_strlen($blurb, 'UTF-8') > $maxLength) {
             // Lấy phần đầu tiên của chuỗi
             $blurb = mb_substr($blurb, 0, $maxLength, 'UTF-8');
-            
-            // Thêm dấu ... để chỉ ra rằng nội dung đã bị cắt
-            $blurb .= '...';
         }
+        
+        // Đảm bảo chuỗi là UTF-8 hợp lệ
+        $blurb = mb_convert_encoding($blurb, 'UTF-8', 'UTF-8');
         
         $stmt->bindValue(':vod_blurb', $blurb);
         
@@ -274,6 +332,8 @@ function importMovieToDB($movie, $pdo) {
         $stmt->bindValue(':vod_plot_name', '');
         $stmt->bindValue(':vod_plot_detail', '');
         $stmt->bindValue(':vod_status', 1);
+        $stmt->bindValue(':vod_version', !empty($movie['quality']) ? $movie['quality'] : 'HD');
+        $stmt->bindValue(':type_id', $typeId);
         
         $stmt->execute();
         return true;
@@ -286,72 +346,101 @@ function importMovieToDB($movie, $pdo) {
 // Main script
 try {
     // Get command line arguments
-    $page = isset($argv[1]) ? (int)$argv[1] : 1;
-    $limit = isset($argv[2]) ? (int)$argv[2] : 10;
-    $force = isset($argv[3]) && $argv[3] === '1';
+    $startPage = isset($argv[1]) ? (int)$argv[1] : 1;
+    $endPage = isset($argv[2]) ? (int)$argv[2] : 1;
+    $limit = isset($argv[3]) ? (int)$argv[3] : 10;
+    $force = isset($argv[4]) && $argv[4] === '1';
+    
+    // Validate page range
+    if ($startPage > $endPage) {
+        echo "Lỗi: Trang bắt đầu phải nhỏ hơn hoặc bằng trang kết thúc.\n";
+        exit(1);
+    }
     
     // Connect to database
     $pdo = new PDO(
         "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
         DB_USER,
         DB_PASS,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+        ]
     );
     
-    // Fetch movies from API
-    $url = API_BASE_URL . "/films/phim-moi-cap-nhat?page=" . $page;
-    $response = makeRequest($url);
+    $totalImportedCount = 0;
+    $totalSkippedCount = 0;
+    $totalMoviesCount = 0;
     
-    if ($response) {
-        $data = json_decode($response, true);
-        if (json_last_error() === JSON_ERROR_NONE && isset($data['items']) && !empty($data['items'])) {
-            $totalMovies = count($data['items']);
-            $importedCount = 0;
-            $skippedCount = 0;
-            
-            echo "Tìm thấy {$totalMovies} phim. Bắt đầu import...\n\n";
-            
-            foreach ($data['items'] as $index => $movie) {
-                if ($index >= $limit) break;
+    // Process each page
+    for ($page = $startPage; $page <= $endPage; $page++) {
+        echo "\n===== ĐANG XỬ LÝ TRANG {$page} =====\n\n";
+        
+        // Fetch movies from API
+        $url = API_BASE_URL . "/films/phim-moi-cap-nhat?page=" . $page;
+        $response = makeRequest($url);
+        
+        if ($response) {
+            $data = json_decode($response, true);
+            if (json_last_error() === JSON_ERROR_NONE && isset($data['items']) && !empty($data['items'])) {
+                $totalMovies = count($data['items']);
+                $importedCount = 0;
+                $skippedCount = 0;
                 
-                echo "Đang xử lý phim {$movie['name']}...\n";
+                echo "Tìm thấy {$totalMovies} phim trên trang {$page}. Bắt đầu import...\n\n";
                 
-                // Check if movie already exists
-                $stmt = $pdo->prepare("SELECT vod_id FROM mac_vod WHERE vod_slug = ?");
-                $stmt->execute([$movie['slug']]);
-                $exists = $stmt->fetch();
-                
-                if ($exists && !$force) {
-                    echo "Phim đã tồn tại, bỏ qua.\n\n";
-                    $skippedCount++;
-                    continue;
-                }
-                
-                // Fetch detailed movie information
-                $movieDetails = fetchMovieDetails($movie['slug']);
-                if ($movieDetails) {
-                    if (importMovieToDB($movieDetails, $pdo)) {
-                        echo "Import phim thành công!\n\n";
-                        $importedCount++;
-                    } else {
-                        echo "Lỗi khi import phim.\n\n";
+                foreach ($data['items'] as $index => $movie) {
+                    if ($index >= $limit) break;
+                    
+                    echo "Đang xử lý phim {$movie['name']}...\n";
+                    
+                    // Check if movie already exists
+                    $stmt = $pdo->prepare("SELECT vod_id FROM mac_vod WHERE vod_sub = ?");
+                    $stmt->execute([$movie['slug']]);
+                    $exists = $stmt->fetch();
+                    
+                    if ($exists && !$force) {
+                        echo "Phim đã tồn tại, bỏ qua.\n\n";
+                        $skippedCount++;
+                        continue;
                     }
-                } else {
-                    echo "Không thể lấy thông tin chi tiết phim.\n\n";
+                    
+                    // Fetch detailed movie information
+                    $movieDetails = fetchMovieDetails($movie['slug']);
+                    if ($movieDetails) {
+                        if (importMovieToDB($movieDetails, $pdo)) {
+                            echo "Import phim thành công!\n\n";
+                            $importedCount++;
+                        } else {
+                            echo "Lỗi khi import phim.\n\n";
+                        }
+                    } else {
+                        echo "Không thể lấy thông tin chi tiết phim.\n\n";
+                    }
                 }
+                
+                echo "Kết quả import trang {$page}:\n";
+                echo "- Tổng số phim: {$totalMovies}\n";
+                echo "- Đã import: {$importedCount}\n";
+                echo "- Đã bỏ qua: {$skippedCount}\n";
+                
+                $totalImportedCount += $importedCount;
+                $totalSkippedCount += $skippedCount;
+                $totalMoviesCount += $totalMovies;
+                
+            } else {
+                echo "Lỗi khi parse JSON hoặc không tìm thấy phim nào trên trang {$page}.\n";
             }
-            
-            echo "Kết quả import:\n";
-            echo "- Tổng số phim: {$totalMovies}\n";
-            echo "- Đã import: {$importedCount}\n";
-            echo "- Đã bỏ qua: {$skippedCount}\n";
-            
         } else {
-            echo "Lỗi khi parse JSON hoặc không tìm thấy phim nào.\n";
+            echo "Không thể kết nối đến API cho trang {$page}.\n";
         }
-    } else {
-        echo "Không thể kết nối đến API.\n";
     }
+    
+    echo "\n===== KẾT QUẢ TỔNG HỢP =====\n";
+    echo "- Tổng số phim đã xử lý: {$totalMoviesCount}\n";
+    echo "- Tổng số phim đã import: {$totalImportedCount}\n";
+    echo "- Tổng số phim đã bỏ qua: {$totalSkippedCount}\n";
+    
 } catch (Exception $e) {
     echo "Lỗi: " . $e->getMessage() . "\n";
 }
