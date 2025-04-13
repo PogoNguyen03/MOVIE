@@ -149,12 +149,12 @@ try {
             </div>
             <div class="p-4">
                 <ul class="space-y-2">
-                    <li>
+                    <!-- <li>
                         <a href="index.php" class="flex items-center p-2 text-gray-700 hover:bg-gray-100 rounded-lg">
                             <i class="fas fa-home w-5 h-5 mr-3"></i>
                             <span>Trang chủ</span>
                         </a>
-                    </li>
+                    </li> -->
                     <li>
                         <a href="manage_movies.php" class="flex items-center p-2 text-gray-700 bg-gray-100 rounded-lg">
                             <i class="fas fa-film w-5 h-5 mr-3"></i>
@@ -167,12 +167,12 @@ try {
                             <span>Import phim</span>
                         </a>
                     </li>
-                    <li>
+                    <!-- <li>
                         <a href="#" class="flex items-center p-2 text-gray-700 hover:bg-gray-100 rounded-lg">
                             <i class="fas fa-cog w-5 h-5 mr-3"></i>
                             <span>Cài đặt</span>
                         </a>
-                    </li>
+                    </li> -->
                 </ul>
             </div>
         </div>
