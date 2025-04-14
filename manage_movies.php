@@ -15,6 +15,10 @@
  */
 
 require_once 'config.php';
+require_once 'auth.php';
+
+// Kiểm tra xác thực
+checkAuth();
 
 // Kết nối database
 try {
@@ -31,13 +35,27 @@ try {
     die("Lỗi kết nối cơ sở dữ liệu: " . $e->getMessage());
 }
 
-// Xử lý xóa phim nếu có yêu cầu
-if (isset($_POST['delete_movie']) && isset($_POST['movie_id'])) {
-    $movieId = (int)$_POST['movie_id'];
+// Xử lý xóa tất cả phim
+if (isset($_GET['action']) && $_GET['action'] === 'delete_all') {
     try {
-        $stmt = $pdo->prepare("DELETE FROM mac_vod WHERE vod_id = ?");
-        $stmt->execute([$movieId]);
-        $deleteMessage = "Đã xóa phim thành công!";
+        $stmt = $pdo->prepare("DELETE FROM mac_vod");
+        $stmt->execute();
+        $deleteMessage = "Đã xóa tất cả phim thành công!";
+    } catch (PDOException $e) {
+        $deleteError = "Lỗi khi xóa tất cả phim: " . $e->getMessage();
+    }
+}
+
+// Xử lý xóa nhiều phim được chọn
+if (isset($_POST['delete_movies'])) {
+    try {
+        $movieIds = json_decode($_POST['delete_movies'], true);
+        if (!empty($movieIds)) {
+            $placeholders = str_repeat('?,', count($movieIds) - 1) . '?';
+            $stmt = $pdo->prepare("DELETE FROM mac_vod WHERE vod_id IN ($placeholders)");
+            $stmt->execute($movieIds);
+            $deleteMessage = "Đã xóa " . count($movieIds) . " phim thành công!";
+        }
     } catch (PDOException $e) {
         $deleteError = "Lỗi khi xóa phim: " . $e->getMessage();
     }
@@ -196,8 +214,11 @@ try {
                             </form>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <span class="text-sm text-gray-600">Admin</span>
+                            <span class="text-sm text-gray-600"><?php echo htmlspecialchars($_SESSION['admin_username']); ?></span>
                             <img src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff" alt="User" class="w-8 h-8 rounded-full">
+                            <a href="logout.php" class="text-red-600 hover:text-red-800">
+                                <i class="fas fa-sign-out-alt"></i> Đăng xuất
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -210,9 +231,17 @@ try {
                         <h1 class="text-2xl font-bold text-gray-800">Quản lý Phim</h1>
                         <p class="text-gray-600">Danh sách phim đã import</p>
                     </div>
-                    <a href="admin_get_movie.php" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                        <i class="fas fa-download mr-2"></i>Import Phim Mới
-                    </a>
+                    <div class="flex space-x-2">
+                        <a href="admin_get_movie.php" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                            <i class="fas fa-download mr-2"></i>Import Phim Mới
+                        </a>
+                        <button onclick="confirmDeleteAll()" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                            <i class="fas fa-trash-alt mr-2"></i>Xóa tất cả
+                        </button>
+                        <button onclick="showBulkDelete()" class="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2">
+                            <i class="fas fa-check-square mr-2"></i>Chọn dữ liệu cần xóa
+                        </button>
+                    </div>
                 </div>
                 
                 <?php if (isset($deleteMessage)): ?>
@@ -245,24 +274,35 @@ try {
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
                                 <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <input type="checkbox" id="selectAll" class="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50">
+                                    </th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên phim</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thể loại</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngôn ngữ</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Năm</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <button onclick="deleteSelected()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1 px-3 rounded focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                                            <i class="fas fa-trash-alt mr-1"></i>Xóa đã chọn
+                                        </button>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
                                 <?php if (empty($movies)): ?>
                                 <tr>
-                                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                                    <td colspan="8" class="px-6 py-4 text-center text-gray-500">
                                         Không tìm thấy phim nào.
                                     </td>
                                 </tr>
                                 <?php else: ?>
                                 <?php foreach ($movies as $movie): ?>
                                 <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                        <input type="checkbox" class="movie-checkbox rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" value="<?php echo $movie['vod_id']; ?>">
+                                    </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo $movie['vod_id']; ?></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($movie['vod_name']); ?></td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo htmlspecialchars($movie['vod_tag']); ?></td>
@@ -272,12 +312,11 @@ try {
                                         <a href="?id=<?php echo $movie['vod_id']; ?>" class="text-blue-600 hover:text-blue-900 mr-3">
                                             <i class="fas fa-eye mr-1"></i> Chi tiết
                                         </a>
-                                        <form action="" method="POST" class="inline" onsubmit="return confirm('Bạn có chắc chắn muốn xóa phim này?');">
-                                            <input type="hidden" name="movie_id" value="<?php echo $movie['vod_id']; ?>">
-                                            <button type="submit" name="delete_movie" class="text-red-600 hover:text-red-900">
-                                                <i class="fas fa-trash-alt mr-1"></i> Xóa
-                                            </button>
-                                        </form>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <button onclick="deleteMovie(<?php echo $movie['vod_id']; ?>)" class="text-red-600 hover:text-red-900">
+                                            <i class="fas fa-trash-alt mr-1"></i> Xóa
+                                        </button>
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
@@ -504,6 +543,17 @@ try {
                     content.classList.toggle('ml-0');
                 }
             });
+
+            // Select all checkbox functionality
+            const selectAllCheckbox = document.getElementById('selectAll');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function() {
+                    const checkboxes = document.querySelectorAll('.movie-checkbox');
+                    checkboxes.forEach(checkbox => {
+                        checkbox.checked = this.checked;
+                    });
+                });
+            }
         });
 
         function showMovieDetail(movieId, event) {
@@ -609,6 +659,69 @@ try {
                     alert('Đã xảy ra lỗi khi lấy thông tin phim');
                     closeMovieDetail();
                 });
+        }
+
+        function confirmDeleteAll() {
+            if (confirm('Bạn có chắc chắn muốn xóa tất cả phim? Hành động này không thể hoàn tác.')) {
+                window.location.href = 'manage_movies.php?action=delete_all';
+            }
+        }
+
+        function showBulkDelete() {
+            // Toggle checkbox column visibility
+            const checkboxes = document.querySelectorAll('.movie-checkbox');
+            const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.style.display = checkbox.style.display === 'none' ? 'table-cell' : 'none';
+            });
+            
+            if (bulkDeleteBtn.style.display === 'none') {
+                bulkDeleteBtn.style.display = 'table-cell';
+            } else {
+                bulkDeleteBtn.style.display = 'none';
+            }
+        }
+
+        function deleteMovie(movieId) {
+            if (confirm('Bạn có chắc chắn muốn xóa phim này?')) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = 'manage_movies.php';
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'delete_movies';
+                input.value = JSON.stringify([movieId]);
+                
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function deleteSelected() {
+            const selectedMovies = Array.from(document.querySelectorAll('.movie-checkbox:checked')).map(cb => cb.value);
+            
+            if (selectedMovies.length === 0) {
+                alert('Vui lòng chọn ít nhất một phim để xóa.');
+                return;
+            }
+            
+            if (confirm(`Bạn có chắc chắn muốn xóa ${selectedMovies.length} phim đã chọn?`)) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = 'manage_movies.php';
+                
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'delete_movies';
+                input.value = JSON.stringify(selectedMovies);
+                
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
         }
     </script>
 </body>
