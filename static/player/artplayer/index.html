@@ -39,54 +39,142 @@
             background: rgba(0,0,0,0.8);
             border-radius: 5px;
         }
+        .retry-button {
+            background: #e50914;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-top: 10px;
+            cursor: pointer;
+            font-family: Arial, sans-serif;
+        }
+        .retry-button:hover {
+            background: #f40612;
+        }
     </style>
 </head>
 <body>
     <div id="video-container">
-        <iframe id="video-frame" allowfullscreen></iframe>
+        <iframe id="video-frame" allowfullscreen allow="autoplay; fullscreen"></iframe>
     </div>
 
     <script>
         // Get video URL from parent window
         const videoUrl = parent.MacPlayer.PlayUrl;
         const videoFrame = document.getElementById('video-frame');
+        let currentUrlIndex = 0;
         
-        // Function to create video URL
-        function createVideoUrl(url) {
-            // Check if URL is HLS
-            if (url.includes('.m3u8')) {
-                return `https://player.vimeo.com/video/player?url=${encodeURIComponent(url)}`;
+        // Function to create video URL with different players
+        function createVideoUrl(url, attempt = 0) {
+            // Remove any existing error messages
+            const errors = document.getElementsByClassName('error-message');
+            while (errors.length > 0) {
+                errors[0].remove();
             }
-            // For other video types, try direct URL
+
+            // Clean URL
+            url = url.trim();
+            
+            // Array of player options
+            const players = [
+                // Direct URL first
+                (u) => u,
+                // JW Player
+                (u) => `https://content.jwplatform.com/players/default.html?url=${encodeURIComponent(u)}`,
+                // Vimeo player
+                (u) => `https://player.vimeo.com/video/0?h=${encodeURIComponent(u)}`,
+                // Fallback player
+                (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`
+            ];
+
+            // If URL is HLS, add specific HLS players
+            if (url.includes('.m3u8')) {
+                players.unshift(
+                    (u) => `https://cdn.plyr.io/static/demo/view.html?url=${encodeURIComponent(u)}`,
+                    (u) => `https://player.vimeo.com/video/0?hls=1&url=${encodeURIComponent(u)}`
+                );
+            }
+
+            // Get next player URL
+            if (attempt < players.length) {
+                return players[attempt](url);
+            }
+
+            // If all players failed, return original URL
             return url;
         }
 
-        // Function to show error message
+        // Function to show error message with retry button
         function showError(message) {
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error-message';
-            errorDiv.textContent = message;
+            errorDiv.innerHTML = `
+                <div>${message}</div>
+                <button class="retry-button" onclick="retryWithNextPlayer()">Thử phương án khác</button>
+            `;
             document.getElementById('video-container').appendChild(errorDiv);
         }
 
-        // Set iframe source
-        try {
-            const videoSrc = createVideoUrl(videoUrl);
-            videoFrame.src = videoSrc;
-            
-            // Add error handling for iframe
-            videoFrame.onerror = function() {
-                showError('Video error. Please try another server.');
-            };
-            
-            // Add load event handler
-            videoFrame.onload = function() {
-                console.log('Video frame loaded');
-            };
-        } catch (error) {
-            console.error('Error setting up video:', error);
-            showError('Error setting up video. Please try another server.');
+        // Function to retry with next player
+        function retryWithNextPlayer() {
+            currentUrlIndex++;
+            loadVideo(videoUrl, currentUrlIndex);
         }
+
+        // Function to load video
+        function loadVideo(url, attempt = 0) {
+            try {
+                const videoSrc = createVideoUrl(url, attempt);
+                console.log('Trying player option:', attempt + 1, videoSrc);
+                
+                // Set referrer policy
+                videoFrame.referrerPolicy = 'no-referrer';
+                
+                // Add error handling for iframe
+                videoFrame.onerror = function() {
+                    console.error('Video frame error, trying next player...');
+                    retryWithNextPlayer();
+                };
+
+                // Add load event handler
+                videoFrame.onload = function() {
+                    console.log('Video frame loaded successfully');
+                    // Check if video is actually playing after a short delay
+                    setTimeout(() => {
+                        if (!isVideoPlaying()) {
+                            console.log('Video not playing, trying next player...');
+                            retryWithNextPlayer();
+                        }
+                    }, 3000);
+                };
+
+                // Set iframe source
+                videoFrame.src = videoSrc;
+
+            } catch (error) {
+                console.error('Error setting up video:', error);
+                showError('Lỗi phát video. Vui lòng thử phương án khác.');
+            }
+        }
+
+        // Function to check if video is playing
+        function isVideoPlaying() {
+            try {
+                const frame = videoFrame.contentWindow;
+                if (frame) {
+                    const video = frame.document.querySelector('video');
+                    return video && !video.paused && video.currentTime > 0;
+                }
+            } catch (e) {
+                // Cross-origin access error, assume video is playing
+                return true;
+            }
+            return false;
+        }
+
+        // Start playing video
+        loadVideo(videoUrl);
 
         // Add keyboard controls
         document.addEventListener('keydown', function(e) {
@@ -98,6 +186,15 @@
                 } else if (videoFrame.msRequestFullscreen) {
                     videoFrame.msRequestFullscreen();
                 }
+            } else if (e.key === 'r') { // Retry with next player
+                retryWithNextPlayer();
+            }
+        });
+
+        // Handle window messages from iframe
+        window.addEventListener('message', function(event) {
+            if (event.data === 'video-error') {
+                retryWithNextPlayer();
             }
         });
     </script>
