@@ -167,9 +167,17 @@
 						<h3 class="title">Phim liên quan</h3>
 					</div>
 					<ul class="vodlist vodlist_sh list_scroll clearfix">
-						{maccms:vod num="8" type="current" not="'.$obj['vod_id'].'" order="desc" by="time"}
-						<li class="vodlist_item num_{$key}">
-							{include file="index/vod_img"}
+						{maccms:vod num="6" type="current" order="desc" by="time"}
+						<li class="vodlist_item">
+							<a href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}">
+								<div class="vodlist_thumb lazyload" data-original="{:mac_url_img($vo.vod_pic)}">						
+									<span class="play hidden_xs"></span>
+									<span class="pic_text text_right">{if condition="$vo.vod_remarks neq ''"}{$vo.vod_remarks}{elseif condition="$vo.vod_serial gt 0"}Tập {$vo.vod_serial}{else /}Full{/if}</span>
+								</div>
+								<div class="vodlist_titbox">
+									<p class="vodlist_title">{$vo.vod_name}</p>
+								</div>
+							</a>
 						</li>
 						{/maccms:vod}
 					</ul>

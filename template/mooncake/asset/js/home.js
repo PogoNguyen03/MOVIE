@@ -765,9 +765,8 @@ var MAC = {
                         if (Ww < 820) {
                             $('.mac_user').attr('href', url);
                         }
-                    } else {
-                        //$('.mac_user').html('<a class="mac_text" href="'+ url +'">'+ name +'</a>');
                     }
+
                     var VIP = '<i class="iconfont user_vip">&#xe638;</i>';
                     if (MAC.User.GroupId < 3) {
                         var GName = MAC.User.GroupName;
@@ -776,12 +775,24 @@ var MAC = {
                     }
 
                     var html = '<div class="mac_user_box dropbox user">';
-                    html += '<div class="user_list_box"><div class="user_list"><a class="mac_user_n" href="javascript:;">' + UName + '</a><a class="mac_user_g" href="javascript:;">' + GName + '</a><a href="' + url + '" target="_blank"><i class="iconfont">&#xe62b;</i>个人中心</a><a href="' + urlfavs + '" target="_blank"><i class="iconfont">&#xe629;</i>我的收藏</a><a href="javascript:;" onclick="MAC.User.Logout();" target="_self"><i class="iconfont">&#xe646;</i>退出账号</a></div></div>'
+                    html += '<div class="user_list_box"><div class="user_list">';
+                    html += '<a class="mac_user_n" href="javascript:;">' + UName + '</a>';
+                    html += '<a class="mac_user_g" href="javascript:;">' + GName + '</a>';
+                    html += '<a href="' + url + '"><i class="iconfont">&#xe62b;</i>Cá nhân</a>';
+                    html += '<a href="' + urlfavs + '"><i class="iconfont">&#xe629;</i>Yêu thích</a>';
+                    html += '<a href="javascript:;" onclick="MAC.User.Logout();"><i class="iconfont">&#xe646;</i>Đăng xuất</a>';
+                    html += '</div></div></div>';
 
                     $('.mac_user').after(html);
                     $('.mac_user').removeClass('mac_user');
                 }
-
+                
+                // Sửa phần menu dropdown khi click vào avatar
+                var dropHtml = '<div class="mac_drop_box mac_user_box" style="display: none;">';
+                dropHtml += '<div class="user_list"><a href="' + url + '"><i class="iconfont">&#xe62b;</i>Cá nhân</a></div>';
+                dropHtml += '<div class="user_list"><a href="' + urlfavs + '"><i class="iconfont">&#xe629;</i>Yêu thích</a></div>';
+                dropHtml += '<div class="user_list"><a href="javascript:;" onclick="MAC.User.Logout();"><i class="iconfont">&#xe646;</i>Đăng xuất</a></div>';
+                dropHtml += '</div>';
             } else {
 
             }

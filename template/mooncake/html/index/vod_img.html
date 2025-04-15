@@ -1,6 +1,6 @@
 <a class="vodlist_thumb lazyload" href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}" data-original="{:mac_url_img($vo.vod_pic)}">
     <span class="play hidden_xs"></span>
-    <span class="vodlist_top"><em class="voddate voddate_year">{$vo.vod_year}</em><em class="voddate voddate_type">{$vo.vod_remarks|mac_default=$vo.vod_score}</em></span>
+    <span class="vodlist_top"><em class="voddate voddate_year">{$vo.vod_year}</em><em class="voddate voddate_type">{if condition="$vo.vod_remarks neq ''"}{$vo.vod_remarks}{elseif condition="$vo.vod_serial gt 0"}Tập {$vo.vod_serial}{else /}Full{/if}</em></span>
     <span class="pic_text text_right text_dy">{$vo.vod_version|mac_default=$vo.vod_score}</span>
 </a>
 <div class="vodlist_titbox">
