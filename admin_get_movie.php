@@ -142,7 +142,7 @@ function normalizeSlug($text) {
     return $text;
 }
 
-// Function to determine type_id based on movie information
+// Function to determine type_id based on category information
 function determineTypeId($category) {
     if (!is_array($category)) {
         return 1; // Default to "Phim bộ" if category is not an array
@@ -153,30 +153,33 @@ function determineTypeId($category) {
     $isSeries = false;
     $isMovie = false;
     
-    foreach ($category as $group) {
-        if (isset($group['group'])) {
-            $groupName = strtolower($group['group']['name']);
+    // Loop through each category group
+    foreach ($category as $groupKey => $group) {
+        if (isset($group['group']) && isset($group['list'])) {
+            $groupName = $group['group']['name'];
             
-            // Check for "Định dạng" group
-            if ($groupName === 'định dạng' && isset($group['list'])) {
+            // Check for "Thể loại" group first to identify animations
+            if ($groupName === 'Thể loại') {
                 foreach ($group['list'] as $item) {
-                    $formatName = strtolower($item['name']);
-                    if ($formatName === 'phim bộ') {
-                        $isSeries = true;
-                    } elseif ($formatName === 'phim lẻ') {
-                        $isMovie = true;
-                    } elseif ($formatName === 'tv shows') {
-                        $isTVShow = true;
+                    $genreName = $item['name'];
+                    if ($genreName === 'Hoạt Hình') {
+                        $isAnimated = true;
+                        // If it's an animation, we can stop checking other categories
+                        return 3;
                     }
                 }
             }
             
-            // Check for "Thể loại" group to identify animations
-            if ($groupName === 'thể loại' && isset($group['list'])) {
+            // Check for "Định dạng" group only if not an animation
+            if ($groupName === 'Định dạng') {
                 foreach ($group['list'] as $item) {
-                    $genreName = strtolower($item['name']);
-                    if ($genreName === 'hoạt hình') {
-                        $isAnimated = true;
+                    $formatName = $item['name'];
+                    if ($formatName === 'Phim bộ') {
+                        $isSeries = true;
+                    } elseif ($formatName === 'Phim lẻ') {
+                        $isMovie = true;
+                    } elseif ($formatName === 'TV shows') {
+                        $isTVShow = true;
                     }
                 }
             }
@@ -184,9 +187,7 @@ function determineTypeId($category) {
     }
     
     // Determine type_id based on the checks
-    if ($isAnimated) {
-        return 3; // Hoạt hình
-    } elseif ($isTVShow) {
+    if ($isTVShow) {
         return 4; // TV shows
     } elseif ($isMovie) {
         return 2; // Phim lẻ
@@ -439,6 +440,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             // Fetch detailed movie information
                             $movieDetails = fetchMovieDetails($movie['slug']);
                             if ($movieDetails) {
+                                // Determine type_id based on category information
+                                $movieDetails['type_id'] = determineTypeId($movieDetails['category']);
+                                
                                 $importResult = importMovieToDB($movieDetails, $pdo);
                                 if ($importResult === true) {
                                     $pageResult['imported']++;
@@ -575,11 +579,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hình ảnh</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên phim</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thể loại</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ngôn ngữ</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Năm</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đã lấy</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bỏ qua</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
                         </tr>
                     </thead>
@@ -587,23 +589,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <?php foreach ($result['pages'] as $pageResult): ?>
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo $pageResult['page']; ?></td>
-                                <td class="px-6 py-4 whitespace-nowrap">
-                                    <?php if (!empty($pageResult['errors'])): ?>
-                                        <img src="https://via.placeholder.com/120x160?text=No+Image" 
-                                             alt="No Image" 
-                                             class="h-16 w-12 object-cover rounded">
-                                    <?php endif; ?>
-                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo $pageResult['total']; ?></td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo $pageResult['imported']; ?></td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo $pageResult['skipped']; ?></td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                    <?php if (!empty($pageResult['errors'])): ?>
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800"><?php echo count($pageResult['errors']); ?> lỗi</span>
-                                    <?php else: ?>
-                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Không có</span>
-                                    <?php endif; ?>
-                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <?php if (!empty($pageResult['errors'])): ?>
                                         <button type="button" class="text-blue-600 hover:text-blue-900 mr-3" onclick="togglePageDetails(<?php echo $pageResult['page']; ?>)">
@@ -614,7 +602,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </tr>
                             <?php if (!empty($pageResult['errors'])): ?>
                                 <tr id="pageDetails<?php echo $pageResult['page']; ?>" class="hidden bg-gray-50">
-                                    <td colspan="6" class="px-6 py-4">
+                                    <td colspan="5" class="px-6 py-4">
                                         <div class="text-sm text-red-600">
                                             <h6 class="font-medium mb-2">Chi tiết lỗi:</h6>
                                             <ul class="list-disc pl-5 space-y-1">
