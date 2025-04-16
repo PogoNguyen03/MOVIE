@@ -24,7 +24,7 @@ $pageTitle = 'Import Phim';
 require_once 'layout.php';
 
 // Function to make HTTP request with cURL
-function makeRequest($url) {
+function makeRequest($url, $headers = []) {
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -33,12 +33,7 @@ function makeRequest($url) {
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Accept: application/json',
-        'Content-Type: application/json',
-        'Origin: https://phim.nguonc.com',
-        'Referer: https://phim.nguonc.com/'
-    ]);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -50,7 +45,7 @@ function makeRequest($url) {
     }
     
     if ($httpCode !== 200) {
-        return ['error' => "Lỗi HTTP: " . $httpCode];
+        return ['error' => "Lỗi HTTP: " . $httpCode . " - URL: " . $url];
     }
     
     return ['data' => $response];
@@ -371,6 +366,30 @@ function importMovieToDB($movie, $pdo) {
     }
 }
 
+// Define movie categories and their API endpoints
+$movieCategories = [
+    'phim-moi-cap-nhat' => [
+        'name' => 'Cập nhật mới',
+        'url' => '/films/phim-moi-cap-nhat'
+    ],
+    'phim-bo' => [
+        'name' => 'Phim Bộ',
+        'url' => '/films/danh-sach/phim-bo'
+    ],
+    'phim-le' => [
+        'name' => 'Phim Lẻ',
+        'url' => '/films/danh-sach/phim-le'
+    ],
+    'tv-shows' => [
+        'name' => 'TV Shows',
+        'url' => '/films/danh-sach/tv-shows'
+    ],
+    'hoat-hinh' => [
+        'name' => 'Hoạt hình',
+        'url' => '/films/the-loai/hoat-hinh'
+    ]
+];
+
 // Process form submission
 $result = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -378,107 +397,116 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $endPage = isset($_POST['end_page']) ? (int)$_POST['end_page'] : 1;
     $limit = isset($_POST['limit']) ? (int)$_POST['limit'] : 10;
     $force = isset($_POST['force']) && $_POST['force'] === '1';
+    $category = isset($_POST['category']) ? $_POST['category'] : 'phim-moi-cap-nhat';
     
-    // Validate page range
-    if ($startPage > $endPage) {
-        $result['error'] = "Lỗi: Trang bắt đầu phải nhỏ hơn hoặc bằng trang kết thúc.";
+    // Validate category
+    if (!array_key_exists($category, $movieCategories)) {
+        $result['error'] = "Danh mục không hợp lệ.";
     } else {
-        // Connect to database
-        try {
-            $pdo = new PDO(
-                "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
-                DB_USER,
-                DB_PASS,
-                [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
-                ]
-            );
-            
-            $totalImportedCount = 0;
-            $totalSkippedCount = 0;
-            $totalMoviesCount = 0;
-            $result['pages'] = [];
-            
-            // Process each page
-            for ($page = $startPage; $page <= $endPage; $page++) {
-                $pageResult = [
-                    'page' => $page,
-                    'total' => 0,
-                    'imported' => 0,
-                    'skipped' => 0,
-                    'errors' => []
-                ];
+        // Validate page range
+        if ($startPage > $endPage) {
+            $result['error'] = "Lỗi: Trang bắt đầu phải nhỏ hơn hoặc bằng trang kết thúc.";
+        } else {
+            // Connect to database
+            try {
+                $pdo = new PDO(
+                    "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+                    DB_USER,
+                    DB_PASS,
+                    [
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+                    ]
+                );
                 
-                // Fetch movies from API
-                $url = API_BASE_URL . "/films/phim-moi-cap-nhat?page=" . $page;
-                $response = makeRequest($url);
+                $totalImportedCount = 0;
+                $totalSkippedCount = 0;
+                $totalMoviesCount = 0;
+                $result['pages'] = [];
                 
-                if (isset($response['data'])) {
-                    $data = json_decode($response['data'], true);
-                    if (json_last_error() === JSON_ERROR_NONE && isset($data['items']) && !empty($data['items'])) {
-                        $totalMovies = count($data['items']);
-                        $importedCount = 0;
-                        $skippedCount = 0;
-                        
-                        $pageResult['total'] = $totalMovies;
-                        
-                        foreach ($data['items'] as $index => $movie) {
-                            if ($index >= $limit) break;
+                // Modify the API URL based on selected category
+                $categoryUrl = $movieCategories[$category]['url'];
+                
+                // Process each page
+                for ($page = $startPage; $page <= $endPage; $page++) {
+                    $pageResult = [
+                        'page' => $page,
+                        'total' => 0,
+                        'imported' => 0,
+                        'skipped' => 0,
+                        'errors' => []
+                    ];
+                    
+                    // Fetch movies from API using category URL
+                    $url = API_BASE_URL . $categoryUrl . "?page=" . $page;
+                    $response = makeRequest($url);
+                    
+                    if (isset($response['data'])) {
+                        $data = json_decode($response['data'], true);
+                        if (json_last_error() === JSON_ERROR_NONE && isset($data['items']) && !empty($data['items'])) {
+                            $totalMovies = count($data['items']);
+                            $importedCount = 0;
+                            $skippedCount = 0;
                             
-                            // Check if movie already exists
-                            $stmt = $pdo->prepare("SELECT vod_id FROM mac_vod WHERE vod_sub = ?");
-                            $stmt->execute([$movie['slug']]);
-                            $exists = $stmt->fetch();
+                            $pageResult['total'] = $totalMovies;
                             
-                            if ($exists && !$force) {
-                                $pageResult['skipped']++;
-                                $skippedCount++;
-                                continue;
-                            }
-                            
-                            // Fetch detailed movie information
-                            $movieDetails = fetchMovieDetails($movie['slug']);
-                            if ($movieDetails) {
-                                // Determine type_id based on category information
-                                $movieDetails['type_id'] = determineTypeId($movieDetails['category']);
+                            foreach ($data['items'] as $index => $movie) {
+                                if ($index >= $limit) break;
                                 
-                                $importResult = importMovieToDB($movieDetails, $pdo);
-                                if ($importResult === true) {
-                                    $pageResult['imported']++;
-                                    $importedCount++;
-                                } else {
-                                    $pageResult['errors'][] = $importResult['error'];
+                                // Check if movie already exists
+                                $stmt = $pdo->prepare("SELECT vod_id FROM mac_vod WHERE vod_sub = ?");
+                                $stmt->execute([$movie['slug']]);
+                                $exists = $stmt->fetch();
+                                
+                                if ($exists && !$force) {
+                                    $pageResult['skipped']++;
+                                    $skippedCount++;
+                                    continue;
                                 }
-                            } else {
-                                $pageResult['errors'][] = "Không thể lấy thông tin chi tiết phim {$movie['name']}.";
+                                
+                                // Fetch detailed movie information
+                                $movieDetails = fetchMovieDetails($movie['slug']);
+                                if ($movieDetails) {
+                                    // Determine type_id based on category information
+                                    $movieDetails['type_id'] = determineTypeId($movieDetails['category']);
+                                    
+                                    $importResult = importMovieToDB($movieDetails, $pdo);
+                                    if ($importResult === true) {
+                                        $pageResult['imported']++;
+                                        $importedCount++;
+                                    } else {
+                                        $pageResult['errors'][] = $importResult['error'];
+                                    }
+                                } else {
+                                    $pageResult['errors'][] = "Không thể lấy thông tin chi tiết phim {$movie['name']}.";
+                                }
                             }
+                            
+                            $totalImportedCount += $importedCount;
+                            $totalSkippedCount += $skippedCount;
+                            $totalMoviesCount += $totalMovies;
+                            
+                        } else {
+                            $pageResult['errors'][] = "Lỗi khi parse JSON hoặc không tìm thấy phim nào trên trang {$page}.";
                         }
-                        
-                        $totalImportedCount += $importedCount;
-                        $totalSkippedCount += $skippedCount;
-                        $totalMoviesCount += $totalMovies;
-                        
                     } else {
-                        $pageResult['errors'][] = "Lỗi khi parse JSON hoặc không tìm thấy phim nào trên trang {$page}.";
+                        $pageResult['errors'][] = "Không thể kết nối đến API cho trang {$page}: " . $response['error'];
                     }
-                } else {
-                    $pageResult['errors'][] = "Không thể kết nối đến API cho trang {$page}: " . $response['error'];
+                    
+                    $result['pages'][] = $pageResult;
                 }
                 
-                $result['pages'][] = $pageResult;
+                $result['summary'] = [
+                    'total_movies' => $totalMoviesCount,
+                    'total_imported' => $totalImportedCount,
+                    'total_skipped' => $totalSkippedCount
+                ];
+                
+            } catch (PDOException $e) {
+                $result['error'] = "Lỗi kết nối cơ sở dữ liệu: " . $e->getMessage();
+            } catch (Exception $e) {
+                $result['error'] = "Lỗi: " . $e->getMessage();
             }
-            
-            $result['summary'] = [
-                'total_movies' => $totalMoviesCount,
-                'total_imported' => $totalImportedCount,
-                'total_skipped' => $totalSkippedCount
-            ];
-            
-        } catch (PDOException $e) {
-            $result['error'] = "Lỗi kết nối cơ sở dữ liệu: " . $e->getMessage();
-        } catch (Exception $e) {
-            $result['error'] = "Lỗi: " . $e->getMessage();
         }
     }
 }
@@ -492,6 +520,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
     <form method="post" action="" id="importForm">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Danh mục phim:</label>
+                <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" id="category" name="category" required>
+                    <?php foreach ($movieCategories as $key => $category): ?>
+                        <option value="<?php echo htmlspecialchars($key); ?>"><?php echo htmlspecialchars($category['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
             <div>
                 <label for="start_page" class="block text-sm font-medium text-gray-700 mb-1">Trang bắt đầu:</label>
                 <input type="number" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" id="start_page" name="start_page" value="1" min="1" required>

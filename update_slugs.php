@@ -1,8 +1,15 @@
 <?php
-$host = "localhost";
-$db = "movie";
-$user = "root";
-$pass = "";
+require_once 'config.php';
+
+$pdo = new PDO(
+    "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+    DB_USER,
+    DB_PASS,
+    [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+    ]
+);
 
 // Function to normalize slug (copy from import_movies.php)
 function normalizeSlug($text) {
@@ -31,9 +38,6 @@ function normalizeSlug($text) {
 }
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
     // Get all records with empty or null slugs
     $stmt = $pdo->query("SELECT vod_id, vod_name FROM mac_vod WHERE vod_slug IS NULL OR vod_slug = ''");
     $movies = $stmt->fetchAll(PDO::FETCH_ASSOC);

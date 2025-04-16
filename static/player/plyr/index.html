@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plyr Player</title>
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background: #000;
+        }
+        .plyr {
+            height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <video id="player" playsinline controls>
+        <source src="" type="video/mp4">
+    </video>
+
+    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+    <script>
+        // Lấy URL video từ tham số URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoUrl = urlParams.get('url');
+        const subtitleUrl = urlParams.get('subtitle');
+
+        // Cấu hình player
+        const player = new Plyr('#player', {
+            controls: [
+                'play-large',
+                'play',
+                'progress',
+                'current-time',
+                'mute',
+                'volume',
+                'captions',
+                'settings',
+                'pip',
+                'airplay',
+                'fullscreen'
+            ],
+            settings: ['captions', 'quality', 'speed', 'loop'],
+            speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] },
+            autoplay: true,
+            muted: false,
+            clickToPlay: true,
+            disableContextMenu: true,
+            hideControls: true,
+            loadSprite: true,
+            iconPrefix: 'plyr',
+            iconUrl: 'https://cdn.plyr.io/3.7.8/plyr.svg',
+            blankVideo: 'https://cdn.plyr.io/static/blank.mp4',
+            quality: {
+                default: 576,
+                options: [4320, 2880, 2160, 1440, 1080, 720, 576, 480, 360, 240]
+            }
+        });
+
+        // Set video source
+        const video = document.querySelector('video');
+        video.src = videoUrl;
+
+        // Thêm phụ đề nếu có
+        if (subtitleUrl) {
+            const track = document.createElement('track');
+            track.kind = 'captions';
+            track.label = 'Tiếng Việt';
+            track.srclang = 'vi';
+            track.src = subtitleUrl;
+            video.appendChild(track);
+        }
+
+        // Chặn quảng cáo
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.addedNodes.length) {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeName === 'IFRAME' || node.nodeName === 'DIV' && node.className.includes('ad')) {
+                            node.remove();
+                        }
+                    });
+                }
+            });
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+    </script>
+</body>
+</html> 

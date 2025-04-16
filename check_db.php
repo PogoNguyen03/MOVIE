@@ -1,15 +1,17 @@
 <?php
-// Cấu hình kết nối database
-$host = "localhost";
-$db = "movie";
-$user = "root";
-$pass = "";
+require_once 'config.php';
+
+$pdo = new PDO(
+    "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+    DB_USER,
+    DB_PASS,
+    [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+    ]
+);
 
 try {
-    // Kết nối database
-    $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
     // Lấy 10 phim mới nhất
     $stmt = $pdo->query("SELECT * FROM mac_vod ORDER BY vod_time DESC LIMIT 10");
     $movies = $stmt->fetchAll(PDO::FETCH_ASSOC);

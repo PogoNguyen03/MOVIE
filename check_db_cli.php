@@ -1,17 +1,20 @@
 <?php
-// Database connection
-$host = "localhost";
-$db = "movie";
-$user = "root";
-$pass = ""; // Empty password as specified
+require_once 'config.php';
+
+$pdo = new PDO(
+    "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
+    DB_USER,
+    DB_PASS,
+    [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+    ]
+);
 
 echo "Database Connection Test\n";
 echo "=======================\n\n";
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8", $user, $pass);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
     echo "✅ Successfully connected to the database!\n\n";
     
     // Get MySQL version
