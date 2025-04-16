@@ -1,0 +1,1 @@
+showPlyrPlayer('https://example.com/video.mp4', 'https://example.com/subtitle.vtt');

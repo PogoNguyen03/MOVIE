@@ -1,8 +1,10 @@
 <?php
+require_once 'config.php';
+
+$pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8", DB_USER, DB_PASS);
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
 try {
-    $pdo = new PDO("mysql:host=localhost;dbname=movie", "root", "");
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-    
     $stmt = $pdo->query("SHOW COLUMNS FROM mac_vod WHERE Field = 'vod_time'");
     $column = $stmt->fetch(PDO::FETCH_ASSOC);
     echo "Column details for vod_time:\n";

@@ -17,11 +17,11 @@ return array (
   ),
   'site' => 
   array (
-    'site_name' => 'vncms',
-    'site_url' => 'https://vncms.test',
-    'site_keywords' => 'Từ kho&aacute; cho website của bạn',
-    'site_description' => 'Thẻ m&ocirc; tả website của bạn',
-    'site_email' => 'test@ramcms.com',
+    'site_name' => 'Phim Vietsub HD | Xem Phim Online | Phim Thuyết Minh',
+    'site_url' => 'https://dayangba.com.cn',
+    'site_keywords' => 'phim, tập,phim bộ, phim lẻ,2025 phim, kung fu...',
+    'site_description' => 'Xem phim Vietsub HD, phim thuyết minh chất lượng cao Thưởng thức phim online đa thể loại với trải nghiệm mượt m&agrave; v&agrave; hấp dẫn',
+    'site_email' => 'https://t.me/we08080',
     'install_dir' => '/',
     'site_logo' => 'upload/site/20221218-1/fcfc15a53bbe64bc245460d2ab0eec28.png',
     'site_waplogo' => 'upload/site/20221218-1/fcfc15a53bbe64bc245460d2ab0eec28.png',
@@ -73,7 +73,7 @@ return array (
     'vod_extend_version' => 'Full HD, HD, 1080, Bản CAM, TV',
     'vod_extend_area' => '&Acirc;u Mỹ, Nhật Bản, H&agrave;n Quốc, Trung Quốc, Đ&agrave;i Loan, Anh, Ph&aacute;p, T&acirc;y Ban Nha, Thổ Nhĩ Kỳ, Việt Nam',
     'vod_extend_lang' => 'Vietsub, Thuyết Minh',
-    'vod_extend_year' => '2025,2024,2023,2021,2020,2019,2018,2017,2016,2015,2014,2013,2012,2011,2010,2009,2008,2007,2006,2005,2004,2003,2002,2001,2000',
+    'vod_extend_year' => '2021,2020,2019,2018,2017,2016,2015,2014,2013,2012,2011,2010,2009,2008,2007,2006,2005,2004,2003,2002,2001,2000',
     'vod_extend_weekday' => 'Thứ 2, Thứ 3, Thứ 4, Thứ 5, Thứ 6, Thứ 7, Chủ Nhật',
     'actor_extend_area' => '&Acirc;u Mỹ, Nhật Bản, H&agrave;n Quốc, Trung Quốc, Đ&agrave;i Loan, Anh, Ph&aacute;p, T&acirc;y Ban Nha, Thổ Nhĩ Kỳ, Việt Nam, Quốc Gia Kh&aacute;c',
     'filter_words' => 'www,http,com,net',
@@ -193,7 +193,7 @@ return array (
   'interface' => 
   array (
     'status' => 0,
-    'pass' => 'G8RCPRWHUPLTE40N',
+    'pass' => 'UWK56OU9YYPPYP2I',
     'vodtype' => '动作片=动作',
     'arttype' => '头条=头条',
     'actortype' => '',
@@ -617,33 +617,39 @@ plotdetail/<id>   => plot/detail',
   array (
     'vod' => 
     array (
-      'name' => 'Nội dung thẻ title ở đây',
-      'key' => 'Nội dung thẻ keywords ở đây',
-      'des' => 'Nội dung thẻ descriptions ở đây',
+      'name' => 'Phim Vietsub HD | Xem Phim Online | Phim Thuyết Minh',
+      'key' => 'phim, tập,phim bộ, phim lẻ,2025 phim, kung fu...',
+      'des' => 'Xem phim Vietsub HD, phim thuyết minh chất lượng cao Thưởng thức phim online đa thể loại với trải nghiệm mượt m&agrave; v&agrave; hấp dẫn',
     ),
     'art' => 
     array (
-      'name' => 'Nội dung thẻ title ở đây',
-      'key' => 'Nội dung thẻ keywords ở đây',
-      'des' => 'Nội dung thẻ descriptions ở đây',
+      'name' => 'Nội dung thẻ title ở đ&acirc;y',
+      'key' => 'Nội dung thẻ keywords ở đ&acirc;y',
+      'des' => 'Nội dung thẻ descriptions ở đ&acirc;y',
     ),
     'actor' => 
     array (
-      'name' => 'Nội dung thẻ title ở đâ',
-      'key' => 'Nội dung thẻ keywords ở đây',
-      'des' => 'Nội dung thẻ descriptions ở đây',
+      'name' => 'Nội dung thẻ title ở đ&acirc;',
+      'key' => 'Nội dung thẻ keywords ở đ&acirc;y',
+      'des' => 'Nội dung thẻ descriptions ở đ&acirc;y',
     ),
     'role' => 
     array (
-      'name' => 'Nội dung thẻ title ở đâ',
-      'key' => 'Nội dung thẻ keywords ở đây',
-      'des' => 'Nội dung thẻ descriptions ở đây',
+      'name' => 'Nội dung thẻ title ở đ&acirc;',
+      'key' => 'Nội dung thẻ keywords ở đ&acirc;y',
+      'des' => 'Nội dung thẻ descriptions ở đ&acirc;y',
     ),
     'plot' => 
     array (
-      'name' => 'Nội dung thẻ title ở đâ',
-      'key' => 'Nội dung thẻ keywords ở đây',
-      'des' => 'Nội dung thẻ descriptions ở đây',
+      'name' => 'Nội dung thẻ title ở đ&acirc;',
+      'key' => 'Nội dung thẻ keywords ở đ&acirc;y',
+      'des' => 'Nội dung thẻ descriptions ở đ&acirc;y',
+    ),
+    'website' => 
+    array (
+      'name' => '',
+      'key' => '',
+      'des' => '',
     ),
   ),
   'urlsend' => 

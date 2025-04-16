@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     
     // Kiểm tra thông tin đăng nhập
-    if ($username === 'mac_admin' && $password === 'mac_admin123') {
+    if ($username === 'adminphong' && $password === 'adminphong') {
         $_SESSION['admin_logged_in'] = true;
         $_SESSION['admin_username'] = $username;
         header('Location: manage_movies.php');
