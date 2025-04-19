@@ -470,7 +470,7 @@ return array (
   array (
     'topic_index' => 'topic/index',
     'topic_detail' => 'topic/{id}/index',
-    'vod_type' => 'vodtypehtml/{id}/index',
+    'vod_type' => 'vodtypehtml/{en}/index',
     'vod_detail' => 'vodhtml/{id}/index',
     'vod_play' => 'vodplayhtml/{id}/index',
     'vod_down' => 'voddownhtml/{id}/index',
@@ -488,7 +488,7 @@ return array (
     'encode_len' => '6',
     'vod_id' => '1',
     'art_id' => '0',
-    'type_id' => '0',
+    'type_id' => '1',
     'topic_id' => '0',
     'actor_id' => '0',
     'role_id' => '0',
