@@ -340,16 +340,29 @@ body.bstem {
 
 .head_logo {
     float: left;
-    width: 3.25rem;
+    width: 5rem;
     margin-top: 0.3rem;
+    position: relative;
+    z-index: 1;
 }
 
 .head_logo .logo {
-    width: 3.25rem;
-    height: 0.9rem;
+    width: 5rem;
+    height: 1rem;
+    background-position: center;
+    background-size: contain;
     background-repeat: no-repeat;
-    background-position: 50% 50%;
-    background-size: cover;
+    display: block;
+}
+
+.head_logo .logo_w,
+.head_logo .logo_b {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
 }
 
 .head_menu_a {
@@ -6412,13 +6425,13 @@ a.actor_part:hover {
     }
 
     .head_logo {
-        width: 2.6rem;
+        width: 3.25rem;
         margin-top: 0.28rem;
     }
 
     .head_logo .logo {
-        width: 2.6rem;
-        height: 0.7rem;
+        width: 3.25rem;
+        height: 0.9rem;
     }
 
     .head_menu_b a.menu {

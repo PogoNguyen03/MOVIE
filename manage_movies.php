@@ -111,6 +111,63 @@ try {
 } catch (PDOException $e) {
     $error = "Lỗi khi lấy danh sách phim: " . $e->getMessage();
 }
+
+// Thêm function random dữ liệu phim
+function randomMovieStats($pdo, $movieIds = null) {
+    try {
+        $whereClause = "";
+        if ($movieIds !== null) {
+            $placeholders = str_repeat('?,', count($movieIds) - 1) . '?';
+            $whereClause = "WHERE vod_id IN ($placeholders)";
+        }
+
+        $sql = "UPDATE mac_vod SET 
+                vod_hits = FLOOR(10 + RAND() * 990),
+                vod_hits_day = FLOOR(10 + RAND() * 90),
+                vod_hits_week = FLOOR(50 + RAND() * 450),
+                vod_hits_month = FLOOR(100 + RAND() * 900),
+                vod_up = FLOOR(10 + RAND() * 90),
+                vod_down = FLOOR(5 + RAND() * 45),
+                vod_score = ROUND(5 + (RAND() * 5), 1),
+                vod_score_all = FLOOR(10 + RAND() * 90),
+                vod_score_num = FLOOR(10 + RAND() * 90)
+                $whereClause";
+
+        $stmt = $pdo->prepare($sql);
+        if ($movieIds !== null) {
+            $stmt->execute($movieIds);
+        } else {
+            $stmt->execute();
+        }
+        
+        return $stmt->rowCount();
+    } catch (PDOException $e) {
+        throw new Exception("Lỗi khi random dữ liệu: " . $e->getMessage());
+    }
+}
+
+// Xử lý random dữ liệu cho tất cả phim
+if (isset($_GET['action']) && $_GET['action'] === 'random_all') {
+    try {
+        $updatedCount = randomMovieStats($pdo);
+        $success = "Đã random dữ liệu cho $updatedCount phim thành công!";
+    } catch (Exception $e) {
+        $error = $e->getMessage();
+    }
+}
+
+// Xử lý random dữ liệu cho phim được chọn
+if (isset($_POST['random_movies'])) {
+    try {
+        $movieIds = json_decode($_POST['random_movies'], true);
+        if (!empty($movieIds)) {
+            $updatedCount = randomMovieStats($pdo, $movieIds);
+            $success = "Đã random dữ liệu cho $updatedCount phim thành công!";
+        }
+    } catch (Exception $e) {
+        $error = $e->getMessage();
+    }
+}
 ?>
 <div class="mb-6 flex justify-between items-center">
     <div>
@@ -121,11 +178,14 @@ try {
         <a href="admin_get_movie.php" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
             <i class="fas fa-download mr-2"></i>Import Phim Mới
         </a>
+        <button onclick="confirmRandomAll()" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+            <i class="fas fa-random mr-2"></i>Random tất cả
+        </button>
         <button onclick="confirmDeleteAll()" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
             <i class="fas fa-trash-alt mr-2"></i>Xóa tất cả
         </button>
-        <button onclick="showBulkDelete()" class="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2">
-            <i class="fas fa-check-square mr-2"></i>Chọn dữ liệu cần xóa
+        <button onclick="showBulkActions()" class="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2">
+            <i class="fas fa-check-square mr-2"></i>Chọn nhiều
         </button>
     </div>
 </div>
@@ -158,6 +218,9 @@ try {
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Năm</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button onclick="randomSelected()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium py-1 px-3 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 mr-2">
+                            <i class="fas fa-random mr-1"></i>Random đã chọn
+                        </button>
                         <button onclick="deleteSelected()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1 px-3 rounded focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
                             <i class="fas fa-trash-alt mr-1"></i>Xóa đã chọn
                         </button>
@@ -540,19 +603,20 @@ try {
         }
     }
 
-    function showBulkDelete() {
+    function showBulkActions() {
         // Toggle checkbox column visibility
         const checkboxes = document.querySelectorAll('.movie-checkbox');
-        const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+        const bulkActionsBtn = document.querySelector('th:last-child');
         
         checkboxes.forEach(checkbox => {
-            checkbox.style.display = checkbox.style.display === 'none' ? 'table-cell' : 'none';
+            const cell = checkbox.closest('td');
+            if (cell) {
+                cell.style.display = cell.style.display === 'none' ? 'table-cell' : 'none';
+            }
         });
         
-        if (bulkDeleteBtn.style.display === 'none') {
-            bulkDeleteBtn.style.display = 'table-cell';
-        } else {
-            bulkDeleteBtn.style.display = 'none';
+        if (bulkActionsBtn) {
+            bulkActionsBtn.style.display = bulkActionsBtn.style.display === 'none' ? 'table-cell' : 'none';
         }
     }
 
@@ -589,6 +653,36 @@ try {
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = 'delete_movies';
+            input.value = JSON.stringify(selectedMovies);
+            
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    function confirmRandomAll() {
+        if (confirm('Bạn có chắc chắn muốn random dữ liệu cho tất cả phim?')) {
+            window.location.href = 'manage_movies.php?action=random_all';
+        }
+    }
+
+    function randomSelected() {
+        const selectedMovies = Array.from(document.querySelectorAll('.movie-checkbox:checked')).map(cb => cb.value);
+        
+        if (selectedMovies.length === 0) {
+            alert('Vui lòng chọn ít nhất một phim để random dữ liệu.');
+            return;
+        }
+        
+        if (confirm(`Bạn có chắc chắn muốn random dữ liệu cho ${selectedMovies.length} phim đã chọn?`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'manage_movies.php';
+            
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'random_movies';
             input.value = JSON.stringify(selectedMovies);
             
             form.appendChild(input);
