@@ -93,6 +93,25 @@ try {
                     </li>
                 </ul>
             </div>
+
+            <!-- Bài viết -->
+            <div class="mb-4">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Bài viết</h3>
+                <ul class="space-y-2">
+                    <li>
+                        <a href="manage_articles.php" class="flex items-center p-2 text-gray-700 hover:bg-gray-100 rounded-lg <?php echo basename($_SERVER['PHP_SELF']) == 'manage_articles.php' ? 'bg-gray-100' : ''; ?>">
+                            <i class="fas fa-newspaper w-5 h-5 mr-3"></i>
+                            <span>Quản lý bài viết</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="collect_articles.php" class="flex items-center p-2 text-gray-700 hover:bg-gray-100 rounded-lg <?php echo basename($_SERVER['PHP_SELF']) == 'collect_articles.php' ? 'bg-gray-100' : ''; ?>">
+                            <i class="fas fa-download w-5 h-5 mr-3"></i>
+                            <span>Thu thập bài viết</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
         
         <!-- Main Content -->
