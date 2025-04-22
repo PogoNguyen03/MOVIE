@@ -112,6 +112,19 @@ try {
                     </li>
                 </ul>
             </div>
+            
+            <!-- Cài đặt -->
+            <div class="mb-4">
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Cài đặt</h3>
+                <ul class="space-y-2">
+                    <li>
+                        <a href="manage_links.php" class="flex items-center p-2 text-gray-700 hover:bg-gray-100 rounded-lg <?php echo basename($_SERVER['PHP_SELF']) == 'manage_links.php' ? 'bg-gray-100' : ''; ?>">
+                            <i class="fas fa-link w-5 h-5 mr-3"></i>
+                            <span>Liên kết</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </div>
         
         <!-- Main Content -->

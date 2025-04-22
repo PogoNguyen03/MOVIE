@@ -3012,4 +3012,24 @@ if (!function_exists('copydirs')) {
     }
 }
 
+// Lấy danh sách liên kết cho footer
+function mac_get_footer_links()
+{
+    $links = [];
+    
+    try {
+        $prefix = config('database.prefix');
+        $rs = \think\Db::name('link')->order('link_sort ASC, link_id ASC')->select();
+        
+        if (!empty($rs)) {
+            $links = $rs;
+        }
+    } catch (Exception $e) {
+        // Xử lý lỗi
+        error_log('Lỗi khi lấy liên kết: ' . $e->getMessage());
+    }
+    
+    return $links;
+}
+
 
