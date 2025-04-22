@@ -32,7 +32,7 @@ function getUrlContent($url) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['collect'])) {
     $start_page = isset($_POST['start_page']) ? (int)$_POST['start_page'] : 1;
     $end_page = isset($_POST['end_page']) ? (int)$_POST['end_page'] : 1;
-    $type_id = 1; // ID loại bài viết phim
+    $news_type = isset($_POST['news_type']) ? $_POST['news_type'] : 'movie';
     
     if ($start_page > $end_page) {
         $_SESSION['error'] = "Trang bắt đầu phải nhỏ hơn hoặc bằng trang kết thúc!";
@@ -41,8 +41,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['collect'])) {
         $error_count = 0;
         $error_details = [];
         
+        // Xác định URL và type_id dựa vào loại tin
+        if ($news_type === 'movie') {
+            $base_url = "https://vnexpress.net/giai-tri/phim-p";
+            $type_id = 6;
+            $type_id_1 = 5;
+        } else {
+            $base_url = "https://vnexpress.net/giai-tri/gioi-sao-p";
+            $type_id = 7;
+            $type_id_1 = 5;
+        }
+        
         for ($page = $start_page; $page <= $end_page; $page++) {
-            $url = "https://vnexpress.net/giai-tri/phim-p" . $page;
+            $url = $base_url . $page;
             
             // Lấy nội dung trang
             $html = getUrlContent($url);
@@ -68,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['collect'])) {
             
             foreach ($articles as $article) {
                 try {
+                    
                     // Lấy tiêu đề
                     $titleNode = $xpath->query(".//h2[contains(@class, 'title-news')]/a", $article)->item(0);
                     if (!$titleNode) {
@@ -82,8 +94,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['collect'])) {
                     $description = $descNode ? trim($descNode->textContent) : '';
                     
                     // Lấy ảnh
-                    $imgNode = $xpath->query(".//picture//img", $article)->item(0);
-                    $image = $imgNode ? $imgNode->getAttribute('src') : '';
+                    $imgNode = $xpath->query(".//div[contains(@class, 'thumb-art')]//picture//img", $article)->item(0);
+                    $image = '';
+                    $image_slide = '';
+                    $image_thumb = '';
+                    if ($imgNode) {
+                        // Lấy URL hình ảnh từ thuộc tính data-src
+                        $image = $imgNode->getAttribute('data-src');
+                        
+                        // Nếu không có data-src, thử lấy từ source tag
+                        if (!$image) {
+                            $sourceNode = $xpath->query(".//div[contains(@class, 'thumb-art')]//picture//source", $article)->item(0);
+                            if ($sourceNode) {
+                                $srcset = $sourceNode->getAttribute('srcset');
+                                if ($srcset) {
+                                    // Lấy URL đầu tiên từ srcset (1x resolution)
+                                    if (preg_match('/^([^\s]+)/', $srcset, $matches)) {
+                                        $image = $matches[1];
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Thêm domain nếu là URL tương đối
+                        if ($image && strpos($image, 'http') !== 0) {
+                            $image = 'https://vnexpress.net' . $image;
+                        }
+                        
+                        // Chuyển đổi URL hình ảnh sang định dạng phù hợp
+                        if ($image) {
+                            // Tách URL gốc và các tham số
+                            $urlParts = explode('?', $image);
+                            $baseUrl = $urlParts[0];
+                            
+                            // Tạo URL cho ảnh slide (kích thước lớn hơn)
+                            $image_slide = $baseUrl . '?w=660&h=360&q=100&dpr=1&fit=crop';
+                            
+                            // Tạo URL cho ảnh thumb (kích thước nhỏ hơn)
+                            $image_thumb = $baseUrl . '?w=180&h=108&q=100&dpr=1&fit=crop';
+                            
+                            // Giữ nguyên URL gốc với các tham số
+                            $image = $urlParts[0] . (isset($urlParts[1]) ? '?' . $urlParts[1] : '');
+                        }
+                    }
                     
                     // Lấy nội dung chi tiết
                     $detailHtml = getUrlContent($link);
@@ -103,12 +156,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['collect'])) {
                         continue;
                     }
                     
-                    $content = $detailDom->saveHTML($contentNode);
+                    // Xử lý nội dung
+                    $content = '';
+                    
+                    // Thêm container cho nội dung
+                    $content .= '<div class="article-content">';
+                    
+                    // Xử lý từng phần tử trong nội dung
+                    foreach ($contentNode->childNodes as $node) {
+                        if ($node->nodeType === XML_ELEMENT_NODE) {
+                            $nodeName = strtolower($node->nodeName);
+                            
+                            // Xử lý hình ảnh
+                            if ($nodeName === 'figure') {
+                                $imgNode = $detailXpath->query(".//img", $node)->item(0);
+                                if ($imgNode) {
+                                    $imgSrc = $imgNode->getAttribute('data-src');
+                                    if (!$imgSrc) {
+                                        $imgSrc = $imgNode->getAttribute('src');
+                                    }
+                                    
+                                    // Lấy caption nếu có
+                                    $figcaption = $detailXpath->query(".//figcaption", $node)->item(0);
+                                    $caption = $figcaption ? $figcaption->textContent : '';
+                                    
+                                    if ($imgSrc) {
+                                        $content .= '<figure class="image-container">';
+                                        $content .= '<img src="' . $imgSrc . '" alt="' . htmlspecialchars($caption) . '">';
+                                        if ($caption) {
+                                            $content .= '<figcaption>' . htmlspecialchars($caption) . '</figcaption>';
+                                        }
+                                        $content .= '</figure>';
+                                    }
+                                }
+                            }
+                            // Xử lý video
+                            else if ($nodeName === 'div' && strpos($node->getAttribute('class'), 'video_player') !== false) {
+                                $content .= '<div class="video-container">';
+                                $content .= $detailDom->saveHTML($node);
+                                $content .= '</div>';
+                            }
+                            // Xử lý đoạn văn bản
+                            else if ($nodeName === 'p') {
+                                $paragraphContent = trim($node->textContent);
+                                if (!empty($paragraphContent)) {
+                                    $content .= '<p>' . htmlspecialchars($paragraphContent) . '</p>';
+                                }
+                            }
+                            // Các phần tử khác
+                            else {
+                                $content .= $detailDom->saveHTML($node);
+                            }
+                        }
+                    }
+                    
+                    // Đóng container
+                    $content .= '</div>';
                     
                     // Thêm thông tin bản quyền và nguồn
-                    $copyright = '<div class="copyright-info" style="margin-top: 20px; padding: 10px; background: #f5f5f5; border-left: 4px solid #666;">
-                        <p style="margin: 0; color: #666; font-size: 14px;">
-                            <strong>Nguồn:</strong> <a href="' . $link . '" target="_blank" style="color: #0066cc;">VnExpress</a><br>
+                    $copyright = '<div class="copyright-info">
+                        <p>
+                            <strong>Nguồn:</strong> <a href="' . $link . '" target="_blank">VnExpress</a><br>
                             <strong>Bản quyền:</strong> © ' . date('Y') . ' VnExpress. Tất cả quyền được bảo lưu.
                         </p>
                     </div>';
@@ -123,9 +231,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['collect'])) {
                     }
                     
                     // Thêm vào database
-                    $stmt = $pdo->prepare("INSERT INTO mac_art (type_id, art_name, art_title, art_note, art_content, art_blurb, art_pic, art_pic_screenshot, art_time_add, art_time, art_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmt = $pdo->prepare("INSERT INTO mac_art (type_id, art_name, art_title, art_note, art_content, art_blurb, art_pic, art_pic_screenshot, art_pic_slide, art_pic_thumb, art_time_add, art_time, art_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
                     $time = time();
-                    $stmt->execute([5, $title, $title, '', $content, $description, $image, $image, $time, $time, 1]);
+                    $stmt->execute([$type_id, $title, $title, '', $content, $description, $image, $image, $image_slide, $image_thumb, $time, $time, 1]);
                     
                     $success_count++;
                 } catch (Exception $e) {
@@ -180,6 +288,14 @@ require_once 'layout.php';
 
     <div class="bg-white shadow-md rounded-lg p-6">
         <form method="POST" class="space-y-4">
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-2" for="news_type">Loại tin tức</label>
+                <select name="news_type" id="news_type" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                    <option value="movie">Tin tức phim (type_id: 6)</option>
+                    <option value="celebrity">Tin tức sao (type_id: 7)</option>
+                </select>
+            </div>
+            
             <div>
                 <label class="block text-gray-700 text-sm font-bold mb-2" for="start_page">Trang bắt đầu</label>
                 <input type="number" name="start_page" id="start_page" min="1" value="1" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
