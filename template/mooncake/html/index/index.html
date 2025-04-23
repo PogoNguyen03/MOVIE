@@ -76,7 +76,7 @@
 				<div class="cbox_list">
 					<div class="cbox1">
 						<ul class="vodlist vodlist_wi list_v6 clearfix">
-							{maccms:vod num="6" order="desc" by="time" level="0" key="key"}
+							{maccms:vod num="6" order="desc" by="hits" level="0" key="key"}
 							<li class="vodlist_item num_{$key}">
 								{include file="index/vod_img"}
 							</li>
@@ -85,7 +85,7 @@
 					</div>
 					<div class="cbox2 hide">
 						<ul class="vodlist vodlist_wi list_v6 clearfix">
-							{maccms:vod num="6" order="desc" by="time" level="0" start="7"}
+							{maccms:vod num="6" order="desc" by="hits" level="0" start="7"}
 							<li class="vodlist_item num_">
 								{include file="index/vod_img"}
 							</li>
@@ -94,7 +94,7 @@
 					</div>
 					<div class="cbox3 hide">
 						<ul class="vodlist vodlist_wi list_v6 clearfix">
-							{maccms:vod num="6" order="desc" by="time" level="0" start="13"}
+							{maccms:vod num="6" order="desc" by="hits" level="0" start="13"}
 							<li class="vodlist_item num_">
 								{include file="index/vod_img"}
 							</li>
@@ -163,7 +163,7 @@
 					<h2 class="title"><i class="iconfont">{switch name="vo1.type_id"}{case value="1"}&#xe64a;{/case}{case value="2"}&#xe649;{/case}{case value="3"}&#xe64b;{/case}{case value="4"}&#xe648;{/case}{default /}&#xe64a;{/switch}</i>{$vo1.type_name}</h2>
 					<a class="text_muted pull_left" href="{:mac_url_type($vo1,[],'show')}">Xem thêm<i class="iconfont more_i">&#xe623;</i></a>
 					<span class="hidden_xs pull_left">
-						{maccms:vod num="3" type="'.$vo1['type_id'].'" order="desc" by="time"}
+						{maccms:vod num="3" type="'.$vo1['type_id'].'" order="desc" by="hits"}
 						<span class="split_line"></span><a href="{:mac_url_vod_detail($vo)}" title="{$vo.vod_name}" class="text_muted">{$vo.vod_name}</a>
 						{/maccms:vod}
 					</span>
@@ -171,7 +171,7 @@
 				<div class="cbox_list">
 					<div class="cbox1">
 						<ul class="vodlist vodlist_wi list_v6 clearfix">
-							{maccms:vod num="6" type="'.$vo1['type_id'].'" order="desc" by="time" key="key2"}
+							{maccms:vod num="6" type="'.$vo1['type_id'].'" order="desc" by="hits" key="key2"}
 							<li class="vodlist_item num_{$key2}">
 								{include file="index/vod_img"}
 							</li>
@@ -180,7 +180,7 @@
 					</div>
 					<div class="cbox2 hide">
 						<ul class="vodlist vodlist_wi list_v6 clearfix">
-							{maccms:vod num="6" start="7" type="'.$vo1['type_id'].'" order="desc" by="time" key="key2"}
+							{maccms:vod num="6" start="7" type="'.$vo1['type_id'].'" order="desc" by="hits" key="key2"}
 							<li class="vodlist_item num_{$key2}">
 								{include file="index/vod_img"}
 							</li>
@@ -189,7 +189,7 @@
 					</div>
 					<div class="cbox3 hide">
 						<ul class="vodlist vodlist_wi list_v6 clearfix">
-							{maccms:vod num="6" start="13" type="'.$vo1['type_id'].'" order="desc" by="time" key="key2"}
+							{maccms:vod num="6" start="13" type="'.$vo1['type_id'].'" order="desc" by="hits" key="key2"}
 							<li class="vodlist_item num_{$key2}">
 								{include file="index/vod_img"}
 							</li>

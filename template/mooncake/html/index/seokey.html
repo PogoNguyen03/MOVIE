@@ -78,7 +78,7 @@
 {elseif$maccms.aid==15}
   <title>Đang xem phim {$obj.vod_name|mac_default='404'}{$obj['vod_play_list'][$param['sid']]['urls'][$param['nid']]['name']} | {$obj['vod_play_list'][$param['sid']]['player_info']['show']}_{$obj.type.type_name}{$obj.type_1.type_name} - {$maccms.site_name}</title>
   <meta name="keywords" content="{$obj.vod_actor},{$obj.vod_director},{$obj.vod_name},{$obj.type.type_name},{$obj.type_1.type_name},{$maccms.site_name}" />
-  <meta name="description" content="{$obj.vod_content|mac_filter_html|mac_substring=110}" />
+  <meta name="description" content="{$obj.vod_content|mac_filter_html}" />
   <meta itemprop="url" property="og:url" content="{:mac_url_vod_detail($obj)}" />
   <meta itemprop="name" property="og:title" content="Đang xem phim {$obj.vod_name}{$obj['vod_play_list'][$param['sid']]['urls'][$param['nid']]['name']} | {$obj['vod_play_list'][$param['sid']]['player_info']['show']}_{$obj.type.type_name}{$obj.type_1.type_name} - {$maccms.site_name}" />
   <meta itemprop="type" property="og:type" content="video" />

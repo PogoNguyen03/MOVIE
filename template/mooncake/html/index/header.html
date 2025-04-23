@@ -2,6 +2,21 @@
     <div class="header">
         <div class="head_a">
             <div class="head_logo">
+                <h1 class="seo-title" style=" position: absolute; width: 1px;height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;">
+                    {if condition="$GLOBALS['type_id'] eq 0"}
+                    phim việt nam, phim hay, phim mới, phim trực tuyến, phim online, phim hài, phim lẻ, phim bộ, phim mỹ, phim hàn
+                    {elseif condition="$GLOBALS['type_id'] eq 1"}
+                    phim bộ việt nam, phim bộ hay, phim bộ mới, phim bộ trực tuyến, phim bộ online, phim bộ hài, phim bộ mỹ, phim bộ hàn
+                    {elseif condition="$GLOBALS['type_id'] eq 2"}
+                    phim lẻ việt nam, phim lẻ hay, phim lẻ mới, phim lẻ trực tuyến, phim lẻ online, phim lẻ hài, phim lẻ mỹ, phim lẻ hàn
+                    {elseif condition="$GLOBALS['type_id'] eq 3"}
+                    phim hoạt hình việt nam, phim hoạt hình hay, phim hoạt hình mới, phim hoạt hình trực tuyến, phim hoạt hình online, phim hoạt hình hài, phim hoạt hình mỹ, phim hoạt hình hàn, phim hoạt hình nhật bản, anime việt nam, anime hay, anime mới, anime trực tuyến, anime online, anime hài, anime mỹ, anime hàn, anime nhật bản
+                    {elseif condition="$GLOBALS['type_id'] eq 4"}
+                    tv shows việt nam, tv shows hay, tv shows mới, tv shows trực tuyến, tv shows online, tv shows hài, tv shows mỹ, tv shows hàn
+                    {else}
+                    phim việt nam, phim hay, phim mới, phim trực tuyến, phim online, phim hài, phim lẻ, phim bộ, phim mỹ, phim hàn
+                    {/if}
+                </h1>
                 <a title="{$maccms.site_url}" class="logo logo_b" style="background-image: url(/{$maccms.site_logo});" href="/"></a>
                 <a title="{$maccms.site_url}" class="logo logo_w" style="background-image: url(/{$maccms.site_logo});" href="/"></a>
             </div>
