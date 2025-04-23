@@ -35,6 +35,425 @@ try {
     die("Lỗi kết nối cơ sở dữ liệu: " . $e->getMessage());
 }
 
+// Function to make HTTP request with cURL - copied from admin_get_movie.php
+function makeRequest($url, $headers = []) {
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+    
+    if ($error) {
+        return ['error' => "Lỗi cURL: " . $error];
+    }
+    
+    if ($httpCode !== 200) {
+        return ['error' => "Lỗi HTTP: " . $httpCode . " - URL: " . $url];
+    }
+    
+    return ['data' => $response];
+}
+
+// Function to normalize slug - copied from admin_get_movie.php
+function normalizeSlug($text) {
+    // Chuyển đổi ký tự đặc biệt thành ký tự thường
+    $text = mb_strtolower($text, 'UTF-8');
+    
+    // Thay thế khoảng trắng bằng dấu gạch ngang
+    $text = preg_replace('/\s+/', '-', $text);
+    
+    // Giữ lại các ký tự đặc biệt tiếng Việt
+    $text = preg_replace('/[^a-z0-9\-àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/', '', $text);
+    
+    // Loại bỏ dấu gạch ngang liên tiếp
+    $text = preg_replace('/-+/', '-', $text);
+    
+    // Loại bỏ dấu gạch ngang ở đầu và cuối
+    $text = trim($text, '-');
+    
+    return $text;
+}
+
+// Function to fetch movie details from API - copied from admin_get_movie.php
+function fetchMovieDetails($slug) {
+    // Chuẩn hóa slug trước khi gọi API
+    $slug = normalizeSlug($slug);
+    $url = API_BASE_URL . "/film/" . $slug;
+    
+    // Log URL để debug
+    error_log("Fetching movie details from URL: " . $url);
+    
+    $response = makeRequest($url);
+    
+    if (isset($response['data'])) {
+        $data = json_decode($response['data'], true);
+        if (json_last_error() === JSON_ERROR_NONE && isset($data['movie'])) {
+            return $data['movie'];
+        } else {
+            // Log lỗi JSON
+            error_log("JSON decode error: " . json_last_error_msg() . " for movie: " . $slug);
+            error_log("Response data: " . $response['data']);
+            return null;
+        }
+    } else {
+        // Log lỗi API
+        error_log("API error for movie: " . $slug . " - " . ($response['error'] ?? 'Unknown error'));
+        return null;
+    }
+}
+
+// Function to extract category information - copied from admin_get_movie.php
+function extractCategoryInfo($category) {
+    $info = [
+        'genres' => [],
+        'year' => '',
+        'country' => ''
+    ];
+    
+    if (!is_array($category)) {
+        return $info;
+    }
+    
+    foreach ($category as $groupKey => $group) {
+        if (!isset($group['group']) || !isset($group['list']) || !is_array($group['list'])) {
+            continue;
+        }
+        
+            $groupName = strtolower($group['group']['name']);
+        
+            if ($groupName === 'năm') {
+                $info['year'] = isset($group['list'][0]['name']) ? $group['list'][0]['name'] : '';
+            } elseif ($groupName === 'quốc gia') {
+                $info['country'] = isset($group['list'][0]['name']) ? $group['list'][0]['name'] : '';
+            } elseif ($groupName === 'thể loại') {
+                foreach ($group['list'] as $item) {
+                if (isset($item['name'])) {
+                    $info['genres'][] = $item['name'];
+                }
+            }
+        }
+    }
+    
+    return $info;
+}
+
+// Function to extract episode information - copied from admin_get_movie.php
+function extractEpisodeInfo($episodes) {
+    $episodeInfo = [];
+    
+    // Log incoming episodes data
+    error_log("Extracting episode info from: " . json_encode($episodes, JSON_UNESCAPED_UNICODE));
+    
+    if (!is_array($episodes)) {
+        error_log("Episodes data is not an array");
+        return $episodeInfo;
+    }
+    
+    foreach ($episodes as $server) {
+        // Log current server being processed
+        error_log("Processing server: " . json_encode($server, JSON_UNESCAPED_UNICODE));
+        
+        if (!isset($server['server_name']) || !isset($server['items']) || !is_array($server['items'])) {
+            error_log("Invalid server data - missing server_name or items");
+            continue;
+        }
+        
+        foreach ($server['items'] as $episode) {
+            // Log current episode being processed
+            error_log("Processing episode: " . json_encode($episode, JSON_UNESCAPED_UNICODE));
+            
+            if (!isset($episode['name']) || !isset($episode['slug']) || !isset($episode['embed'])) {
+                error_log("Invalid episode data - missing required fields");
+                continue;
+            }
+            
+            // Process episode name
+            $episodeName = $episode['name'];
+            // Remove "Thứ" and "tập" from episode name
+            $episodeName = str_replace(['Thứ', 'tập'], '', $episodeName);
+            // Remove extra whitespace
+            $episodeName = trim($episodeName);
+            // Extract only the episode number
+            preg_match('/\d+/', $episodeName, $matches);
+            $episodeName = isset($matches[0]) ? $matches[0] : $episodeName;
+            
+            $episodeData = [
+                'name' => $episodeName,
+                'slug' => $episode['slug'],
+                'embed' => $episode['embed'],
+                'server_name' => $server['server_name']
+            ];
+            
+            // Log processed episode data
+            error_log("Processed episode data: " . json_encode($episodeData, JSON_UNESCAPED_UNICODE));
+            
+            $episodeInfo[] = $episodeData;
+        }
+    }
+    
+    // Log final episode info array
+    error_log("Final episode info array: " . json_encode($episodeInfo, JSON_UNESCAPED_UNICODE));
+    
+    return $episodeInfo;
+}
+
+// Function to convert time format to minutes - copied from admin_get_movie.php
+function convertTimeToMinutes($time) {
+    if (empty($time)) return 0;
+    
+    // Handle "XX phút" format
+    if (preg_match('/^(\d+)\s*phút$/i', $time, $matches)) {
+        return (int)$matches[1];
+    }
+    
+    // Handle "XX Phút/Tập" format
+    if (preg_match('/^(\d+)\s*Phút\/Tập$/i', $time, $matches)) {
+        return (int)$matches[1];
+    }
+    
+    // Handle "XX:XX" format
+    if (preg_match('/^(\d+):(\d+)$/', $time, $matches)) {
+        return (int)$matches[1] * 60 + (int)$matches[2];
+    }
+    
+    return 0;
+}
+
+// Function to determine type_id based on category information - copied from admin_get_movie.php
+function determineTypeId($category) {
+    if (!is_array($category)) {
+        return 1; // Default to "Phim bộ" if category is not an array
+    }
+    
+    $isAnimated = false;
+    $isTVShow = false;
+    $isSeries = false;
+    $isMovie = false;
+    
+    // Loop through each category group
+    foreach ($category as $groupKey => $group) {
+        if (isset($group['group']) && isset($group['list'])) {
+            $groupName = $group['group']['name'];
+            
+            // Check for "Thể loại" group first to identify animations
+            if ($groupName === 'Thể loại') {
+                foreach ($group['list'] as $item) {
+                    $genreName = $item['name'];
+                    if ($genreName === 'Hoạt Hình') {
+                        $isAnimated = true;
+                        // If it's an animation, we can stop checking other categories
+                        return 3;
+                    }
+                }
+            }
+            
+            // Check for "Định dạng" group only if not an animation
+            if ($groupName === 'Định dạng') {
+                foreach ($group['list'] as $item) {
+                    $formatName = $item['name'];
+                    if ($formatName === 'Phim bộ') {
+                        $isSeries = true;
+                    } elseif ($formatName === 'Phim lẻ') {
+                        $isMovie = true;
+                    } elseif ($formatName === 'TV shows') {
+                        $isTVShow = true;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Determine type_id based on the checks
+    if ($isTVShow) {
+        return 4; // TV shows
+    } elseif ($isMovie) {
+        return 2; // Phim lẻ
+    } else {
+        return 1; // Default to "Phim bộ"
+    }
+}
+
+// Function to import movie to database (handles both INSERT and UPDATE) - copied from admin_get_movie.php
+function importMovieToDB($movie, $pdo, $existingVodId = null) {
+    try {
+        // Log incoming movie data for debugging
+        error_log("Importing movie data: " . json_encode($movie, JSON_UNESCAPED_UNICODE));
+        
+        // Extract category information
+        $categoryInfo = extractCategoryInfo($movie['category']);
+        
+        // Extract episode information and add logging
+        error_log("Processing episodes data: " . json_encode($movie['episodes'], JSON_UNESCAPED_UNICODE));
+        $episodeInfo = extractEpisodeInfo($movie['episodes']);
+        error_log("Extracted episode info: " . json_encode($episodeInfo, JSON_UNESCAPED_UNICODE));
+        
+        // Convert time to minutes
+        $duration = convertTimeToMinutes($movie['time']);
+        
+        // Determine type_id based on movie information
+        $typeId = determineTypeId($movie['category']);
+        
+        // Prepare episode data with improved logging
+        $episodeData = [];
+        $playFrom = 'ngm3u8'; // Always use ngm3u8
+        
+        if (!empty($episodeInfo)) {
+            error_log("Processing non-empty episode info");
+            
+            foreach ($episodeInfo as $episode) {
+                if ($typeId == 2) { // If it's a movie (not a series)
+                    $episodeData[] = $episode['server_name'] . '$' . $episode['embed'];
+                    error_log("Added movie episode: " . $episode['server_name'] . '$' . $episode['embed']);
+                } else { // If it's a series
+                    $episodeData[] = $episode['name'] . '$' . $episode['embed'];
+                    error_log("Added series episode: " . $episode['name'] . '$' . $episode['embed']);
+                }
+            }
+        } else {
+            error_log("No episode info found in the movie data");
+        }
+        
+        $playUrl = implode('#', $episodeData);
+        error_log("Final play URL: " . $playUrl);
+
+        // Prepare SQL statement (Common fields for INSERT and UPDATE)
+        $fields = [
+            'vod_name' => $movie['name'] ?? '',
+            'vod_sub' => $movie['slug'] ?? '',
+            'vod_en' => $movie['original_name'] ?? '',
+            'vod_tag' => !empty($categoryInfo['genres']) ? implode(',', $categoryInfo['genres']) : '',
+            'vod_class' => '', // Need to determine class logic if needed
+            'vod_pic' => $movie['poster_url'] ?? '',
+            'vod_pic_thumb' => $movie['thumb_url'] ?? '',
+            'vod_actor' => $movie['casts'] ?? '',
+            'vod_director' => $movie['director'] ?? '',
+            'vod_writer' => '',
+            'vod_behind' => '',
+            'vod_content' => $movie['description'] ?? '',
+            'vod_blurb' => mb_substr($movie['description'] ?? '', 0, 200, 'UTF-8'),
+            'vod_year' => !empty($categoryInfo['year']) ? $categoryInfo['year'] : date('Y'),
+            'vod_area' => !empty($categoryInfo['country']) ? $categoryInfo['country'] : 'Đang cập nhật',
+            'vod_state' => $movie['episode_current'] ?? '',
+            'vod_serial' => $typeId == 2 ? 0 : 1,
+            'vod_tv' => 0,
+            'vod_weekday' => '',
+            'vod_total' => $movie['episode_total'] ?? count($episodeData),
+            'vod_trysee' => 0,
+            'vod_duration' => $duration,
+            'vod_remarks' => $movie['quality'] ?? ($movie['lang'] ?? ''),
+            'vod_tpl' => '',
+            'vod_tpl_play' => '',
+            'vod_tpl_down' => '',
+            'vod_isend' => ($movie['status'] ?? '') === 'completed' ? 1 : 0,
+            'vod_lock' => 0,
+            'vod_level' => 0,
+            'vod_copyright' => 0,
+            'vod_points' => 0,
+            'vod_points_play' => 0,
+            'vod_points_down' => 0,
+            'vod_play_from' => $playFrom,
+            'vod_play_server' => '',
+            'vod_play_note' => '',
+            'vod_play_url' => $playUrl,
+            'vod_down_from' => '',
+            'vod_down_server' => '',
+            'vod_down_note' => '',
+            'vod_down_url' => '',
+            'vod_time' => time(),
+            'vod_reurl' => '',
+            'vod_rel_vod' => '',
+            'vod_rel_art' => '',
+            'vod_pwd' => '',
+            'vod_pwd_url' => '',
+            'vod_pwd_play' => '',
+            'vod_pwd_play_url' => '',
+            'vod_pwd_down' => '',
+            'vod_pwd_down_url' => '',
+            'vod_plot' => 0,
+            'vod_plot_name' => '',
+            'vod_plot_detail' => '',
+            'vod_status' => 1,
+            'vod_version' => '',
+            'type_id' => $typeId
+        ];
+
+        // Handle language separately to avoid length issues
+        $language = !empty($movie['lang']) ? $movie['lang'] : 'Phụ đề Việt';
+        $language = str_replace(['+', '_'], [',', ' '], $language);
+        $language = preg_replace('/\s+/', ' ', $language);
+        $language = trim($language);
+        if (mb_strlen($language, 'UTF-8') > 50) {
+            $language = mb_substr($language, 0, 50, 'UTF-8');
+            $lastSpace = mb_strrpos($language, ' ', 0, 'UTF-8');
+            if ($lastSpace !== false) {
+                $language = mb_substr($language, 0, $lastSpace, 'UTF-8');
+            }
+        }
+        $fields['vod_lang'] = $language;
+
+        if ($existingVodId !== null) {
+            // UPDATE existing movie
+            $setClauses = [];
+            foreach (array_keys($fields) as $field) {
+                $setClauses[] = "`$field` = :$field";
+            }
+            $sql = "UPDATE mac_vod SET " . implode(', ', $setClauses) . " WHERE vod_id = :vod_id";
+            $stmt = $pdo->prepare($sql);
+            $fields['vod_id'] = $existingVodId;
+        } else {
+            // INSERT new movie
+            // Add fields only for INSERT
+            $fields['vod_hits'] = 0;
+            $fields['vod_hits_day'] = 0;
+            $fields['vod_hits_week'] = 0;
+            $fields['vod_hits_month'] = 0;
+            $fields['vod_up'] = 0;
+            $fields['vod_down'] = 0;
+            $fields['vod_score'] = 0;
+            $fields['vod_score_all'] = 0;
+            $fields['vod_score_num'] = 0;
+            $fields['vod_author'] = '';
+            $fields['vod_jumpurl'] = '';
+            $fields['vod_time_add'] = time();
+            $fields['vod_time_hits'] = 0;
+            $fields['vod_time_make'] = 0;
+            $fields['vod_douban_id'] = 0;
+            $fields['vod_douban_score'] = 0;
+
+            $sql = "INSERT INTO mac_vod (" . implode(', ', array_map(function($f){ return "`$f`"; }, array_keys($fields))) . ") VALUES (:" . implode(', :', array_keys($fields)) . ")";
+            $stmt = $pdo->prepare($sql);
+        }
+        
+        // Bind values
+        foreach ($fields as $key => $value) {
+            if($key === 'vod_play_url' && is_array($value)) {
+                $stmt->bindValue(":$key", json_encode($value));
+            } else {
+                $stmt->bindValue(":$key", $value);
+            }
+        }
+        
+        $stmt->execute();
+        
+        return ['success' => true, 'action' => ($existingVodId !== null ? 'updated' : 'inserted')];
+    } catch (PDOException $e) {
+        error_log("Database error when importing/updating movie {$movie['name']}: " . $e->getMessage());
+        return ['error' => 'Lỗi cơ sở dữ liệu: ' . $e->getMessage()];
+    } catch (Exception $e) {
+        error_log("General error when importing/updating movie {$movie['name']}: " . $e->getMessage());
+        return ['error' => 'Lỗi không xác định: ' . $e->getMessage()];
+    }
+}
+
 $pageTitle = 'Quản lý Phim';
 require_once 'layout.php';
 
@@ -168,6 +587,79 @@ if (isset($_POST['random_movies'])) {
         $error = $e->getMessage();
     }
 }
+
+// Xử lý cập nhật tất cả phim
+if (isset($_POST['update_all'])) {
+    try {
+        $stmt = $pdo->query("SELECT vod_id, vod_sub FROM mac_vod");
+        $allMovies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $updatedCount = 0;
+        $failedSlugs = [];
+
+        foreach ($allMovies as $movie) {
+            $movieDetails = fetchMovieDetails($movie['vod_sub']);
+            if ($movieDetails) {
+                $updateResult = importMovieToDB($movieDetails, $pdo, $movie['vod_id']);
+                if ($updateResult['success'] && $updateResult['action'] === 'updated') {
+                    $updatedCount++;
+                }
+            } else {
+                $failedSlugs[] = $movie['vod_sub'];
+            }
+            // Thêm độ trễ nhỏ để tránh quá tải API (tùy chọn)
+            usleep(100000); // 0.1 giây
+        }
+
+        $success = "Đã cập nhật thành công $updatedCount phim.";
+        if (!empty($failedSlugs)) {
+            $error = "Không thể lấy thông tin chi tiết hoặc cập nhật cho các slug: " . implode(', ', $failedSlugs);
+        }
+    } catch (PDOException $e) {
+        $error = "Lỗi database khi cập nhật tất cả phim: " . $e->getMessage();
+    } catch (Exception $e) {
+        $error = "Lỗi khi cập nhật tất cả phim: " . $e->getMessage();
+    }
+}
+
+// Xử lý cập nhật phim được chọn
+if (isset($_POST['update_selected'])) {
+    try {
+        $movieIds = json_decode($_POST['update_selected'], true);
+        $updatedCount = 0;
+        $failedSlugs = [];
+
+        if (!empty($movieIds)) {
+            $placeholders = str_repeat('?,', count($movieIds) - 1) . '?';
+            $stmt = $pdo->prepare("SELECT vod_id, vod_sub FROM mac_vod WHERE vod_id IN ($placeholders)");
+            $stmt->execute($movieIds);
+            $selectedMovies = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($selectedMovies as $movie) {
+                $movieDetails = fetchMovieDetails($movie['vod_sub']);
+                if ($movieDetails) {
+                    $updateResult = importMovieToDB($movieDetails, $pdo, $movie['vod_id']);
+                    if ($updateResult['success'] && $updateResult['action'] === 'updated') {
+                        $updatedCount++;
+                    }
+                } else {
+                    $failedSlugs[] = $movie['vod_sub'];
+                }
+                 // Thêm độ trễ nhỏ
+                 usleep(100000); 
+            }
+            $success = "Đã cập nhật thành công $updatedCount phim được chọn.";
+             if (!empty($failedSlugs)) {
+                $error = "Không thể lấy thông tin chi tiết hoặc cập nhật cho các slug: " . implode(', ', $failedSlugs);
+            }
+        } else {
+            $error = "Không có phim nào được chọn để cập nhật.";
+        }
+    } catch (PDOException $e) {
+        $error = "Lỗi database khi cập nhật phim đã chọn: " . $e->getMessage();
+    } catch (Exception $e) {
+        $error = "Lỗi khi cập nhật phim đã chọn: " . $e->getMessage();
+    }
+}
 ?>
 <div class="mb-6 flex justify-between items-center">
     <div>
@@ -180,6 +672,9 @@ if (isset($_POST['random_movies'])) {
         </a>
         <button onclick="confirmRandomAll()" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
             <i class="fas fa-random mr-2"></i>Random tất cả
+        </button>
+        <button onclick="confirmUpdateAll()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
+            <i class="fas fa-sync-alt mr-2"></i>Cập nhật tất cả
         </button>
         <button onclick="confirmDeleteAll()" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
             <i class="fas fa-trash-alt mr-2"></i>Xóa tất cả
@@ -220,6 +715,9 @@ if (isset($_POST['random_movies'])) {
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         <button onclick="randomSelected()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium py-1 px-3 rounded focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 mr-2">
                             <i class="fas fa-random mr-1"></i>Random đã chọn
+                        </button>
+                        <button onclick="updateSelected()" class="bg-green-600 hover:bg-green-700 text-white text-xs font-medium py-1 px-3 rounded focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 mr-2">
+                            <i class="fas fa-sync-alt mr-1"></i>Cập nhật đã chọn
                         </button>
                         <button onclick="deleteSelected()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1 px-3 rounded focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
                             <i class="fas fa-trash-alt mr-1"></i>Xóa đã chọn
@@ -683,6 +1181,45 @@ if (isset($_POST['random_movies'])) {
             const input = document.createElement('input');
             input.type = 'hidden';
             input.name = 'random_movies';
+            input.value = JSON.stringify(selectedMovies);
+            
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    function confirmUpdateAll() {
+        if (confirm('Bạn có chắc chắn muốn cập nhật dữ liệu cho TẤT CẢ phim từ API? Quá trình này có thể mất nhiều thời gian.')) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'manage_movies.php';
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'update_all';
+            input.value = '1';
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    function updateSelected() {
+        const selectedMovies = Array.from(document.querySelectorAll('.movie-checkbox:checked')).map(cb => cb.value);
+        
+        if (selectedMovies.length === 0) {
+            alert('Vui lòng chọn ít nhất một phim để cập nhật.');
+            return;
+        }
+        
+        if (confirm(`Bạn có chắc chắn muốn cập nhật dữ liệu cho ${selectedMovies.length} phim đã chọn từ API?`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'manage_movies.php';
+            
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'update_selected';
             input.value = JSON.stringify(selectedMovies);
             
             form.appendChild(input);

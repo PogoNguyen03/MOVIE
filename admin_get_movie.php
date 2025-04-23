@@ -244,8 +244,8 @@ function fetchMovieDetails($slug) {
     }
 }
 
-// Function to import movie to database
-function importMovieToDB($movie, $pdo) {
+// Function to import movie to database (handles both INSERT and UPDATE)
+function importMovieToDB($movie, $pdo, $existingVodId = null) {
     try {
         // Extract category information
         $categoryInfo = extractCategoryInfo($movie['category']);
@@ -261,76 +261,86 @@ function importMovieToDB($movie, $pdo) {
         
         // Prepare episode data
         $episodeData = [];
+        $playFrom = 'ngm3u8'; // Mặc định
+        if (!empty($episodeInfo)) {
+            $playFrom = $episodeInfo[0]['server_name'] ?? 'ngm3u8'; // Lấy server_name từ tập đầu tiên nếu có
         foreach ($episodeInfo as $episode) {
             // Nếu là phim lẻ (type_id = 2), sử dụng server_name làm tên tập
             if ($typeId == 2) {
-                $episodeData[] = [
-                    'name' => $episode['server_name'],
-                    'embed' => $episode['embed']
-                ];
+                    $episodeData[] = $episode['server_name'] . '$' . $episode['embed'];
             } else {
-            $episodeData[] = $episode['embed'];
+                    $episodeData[] = $episode['name'] . '$' . $episode['embed'];
+                }
             }
         }
-        
-        // Prepare SQL statement
-        $sql = "INSERT INTO mac_vod (
-            vod_name, vod_sub, vod_en, vod_tag, vod_class, vod_pic, vod_pic_thumb, 
-            vod_actor, vod_director, vod_writer, vod_behind, vod_content, vod_blurb,
-            vod_year, vod_area, vod_lang, vod_state, vod_serial, vod_tv, 
-            vod_weekday, vod_total, vod_trysee, vod_hits, vod_hits_day, 
-            vod_hits_week, vod_hits_month, vod_duration, vod_up, vod_down, 
-            vod_score, vod_remarks, vod_author, vod_jumpurl, vod_tpl, vod_tpl_play, 
-            vod_tpl_down, vod_isend, vod_lock, vod_level, vod_copyright, vod_points, 
-            vod_points_play, vod_points_down, vod_play_from, vod_play_server, 
-            vod_play_note, vod_play_url, vod_down_from, vod_down_server, vod_down_note, 
-            vod_down_url, vod_time, vod_time_add, vod_time_hits, vod_time_make, 
-            vod_douban_id, vod_douban_score, vod_reurl, vod_rel_vod, vod_rel_art, 
-            vod_pwd, vod_pwd_url, vod_pwd_play, vod_pwd_play_url, vod_pwd_down, 
-            vod_pwd_down_url, vod_plot, vod_plot_name, vod_plot_detail, vod_status,
-            vod_version, type_id
-        ) VALUES (
-            :vod_name, :vod_sub, :vod_en, :vod_tag, :vod_class, :vod_pic, :vod_pic_thumb, 
-            :vod_actor, :vod_director, :vod_writer, :vod_behind, :vod_content, :vod_blurb,
-            :vod_year, :vod_area, :vod_lang, :vod_state, :vod_serial, :vod_tv, 
-            :vod_weekday, :vod_total, :vod_trysee, :vod_hits, :vod_hits_day, 
-            :vod_hits_week, :vod_hits_month, :vod_duration, :vod_up, :vod_down, 
-            :vod_score, :vod_remarks, :vod_author, :vod_jumpurl, :vod_tpl, :vod_tpl_play, 
-            :vod_tpl_down, :vod_isend, :vod_lock, :vod_level, :vod_copyright, :vod_points, 
-            :vod_points_play, :vod_points_down, :vod_play_from, :vod_play_server, 
-            :vod_play_note, :vod_play_url, :vod_down_from, :vod_down_server, :vod_down_note, 
-            :vod_down_url, :vod_time, :vod_time_add, :vod_time_hits, :vod_time_make, 
-            :vod_douban_id, :vod_douban_score, :vod_reurl, :vod_rel_vod, :vod_rel_art, 
-            :vod_pwd, :vod_pwd_url, :vod_pwd_play, :vod_pwd_play_url, :vod_pwd_down, 
-            :vod_pwd_down_url, :vod_plot, :vod_plot_name, :vod_plot_detail, :vod_status,
-            :vod_version, :type_id
-        )";
-        
-        $stmt = $pdo->prepare($sql);
-        
-        // Set values
-        $stmt->bindValue(':vod_name', $movie['name'] ?? '');
-        $stmt->bindValue(':vod_sub', $movie['slug'] ?? '');
-        $stmt->bindValue(':vod_en', $movie['original_name'] ?? '');
-        $stmt->bindValue(':vod_tag', !empty($categoryInfo['genres']) ? implode(',', $categoryInfo['genres']) : '');
-        $stmt->bindValue(':vod_class', '');
-        $stmt->bindValue(':vod_pic', $movie['poster_url'] ?? '');
-        $stmt->bindValue(':vod_pic_thumb', $movie['thumb_url'] ?? '');
-        $stmt->bindValue(':vod_actor', $movie['casts'] ?? '');
-        $stmt->bindValue(':vod_director', $movie['director'] ?? '');
-        $stmt->bindValue(':vod_writer', '');
-        $stmt->bindValue(':vod_behind', '');
-        $stmt->bindValue(':vod_content', $movie['description'] ?? '');
-        $stmt->bindValue(':vod_blurb', mb_substr($movie['description'] ?? '', 0, 200, 'UTF-8'));
-        $stmt->bindValue(':vod_year', !empty($categoryInfo['year']) ? $categoryInfo['year'] : date('Y'));
-        $stmt->bindValue(':vod_area', !empty($categoryInfo['country']) ? $categoryInfo['country'] : 'Đang cập nhật');
-        
-        // Xử lý và giới hạn độ dài của ngôn ngữ
-        $language = !empty($movie['language']) ? $movie['language'] : 'Phụ đề Việt';
-        $language = str_replace('+', ',', $language);
+        $playUrl = implode('#', $episodeData);
+
+        // Prepare SQL statement (Common fields for INSERT and UPDATE)
+        $fields = [
+            'vod_name' => $movie['name'] ?? '',
+            'vod_sub' => $movie['slug'] ?? '',
+            'vod_en' => $movie['original_name'] ?? '',
+            'vod_tag' => !empty($categoryInfo['genres']) ? implode(',', $categoryInfo['genres']) : '',
+            'vod_class' => '', // Cần xác định logic lấy class nếu có
+            'vod_pic' => $movie['poster_url'] ?? '',
+            'vod_pic_thumb' => $movie['thumb_url'] ?? '',
+            'vod_actor' => $movie['casts'] ?? '',
+            'vod_director' => $movie['director'] ?? '',
+            'vod_writer' => '',
+            'vod_behind' => '',
+            'vod_content' => $movie['description'] ?? '',
+            'vod_blurb' => mb_substr($movie['description'] ?? '', 0, 200, 'UTF-8'),
+            'vod_year' => !empty($categoryInfo['year']) ? $categoryInfo['year'] : date('Y'),
+            'vod_area' => !empty($categoryInfo['country']) ? $categoryInfo['country'] : 'Đang cập nhật',
+            'vod_state' => $movie['episode_current'] ?? '', // Cập nhật trạng thái tập
+            'vod_serial' => $typeId == 2 ? 0 : 1,
+            'vod_tv' => 0,
+            'vod_weekday' => '',
+            'vod_total' => $movie['episode_total'] ?? count($episodeData), // Cập nhật tổng số tập
+            'vod_trysee' => 0,
+            'vod_duration' => $duration,
+            'vod_remarks' => $movie['quality'] ?? ($movie['lang'] ?? ''), // Cập nhật remarks
+            'vod_tpl' => '',
+            'vod_tpl_play' => '',
+            'vod_tpl_down' => '',
+            'vod_isend' => ($movie['status'] ?? '') === 'completed' ? 1 : 0, // Cập nhật trạng thái hoàn thành
+            'vod_lock' => 0,
+            'vod_level' => 0,
+            'vod_copyright' => 0,
+            'vod_points' => 0,
+            'vod_points_play' => 0,
+            'vod_points_down' => 0,
+            'vod_play_from' => $playFrom,
+            'vod_play_server' => '',
+            'vod_play_note' => '',
+            'vod_play_url' => $playUrl,
+            'vod_down_from' => '',
+            'vod_down_server' => '',
+            'vod_down_note' => '',
+            'vod_down_url' => '',
+            'vod_time' => time(),
+            'vod_reurl' => '',
+            'vod_rel_vod' => '',
+            'vod_rel_art' => '',
+            'vod_pwd' => '',
+            'vod_pwd_url' => '',
+            'vod_pwd_play' => '',
+            'vod_pwd_play_url' => '',
+            'vod_pwd_down' => '',
+            'vod_pwd_down_url' => '',
+            'vod_plot' => 0,
+            'vod_plot_name' => '',
+            'vod_plot_detail' => '',
+            'vod_status' => 1,
+            'vod_version' => '',
+            'type_id' => $typeId
+        ];
+
+        // Xử lý ngôn ngữ riêng để tránh lỗi độ dài
+        $language = !empty($movie['lang']) ? $movie['lang'] : 'Phụ đề Việt';
+        $language = str_replace(['+', '_'], [',', ' '], $language);
         $language = preg_replace('/\s+/', ' ', $language);
         $language = trim($language);
-        $language = mb_convert_encoding($language, 'UTF-8', 'UTF-8');
         if (mb_strlen($language, 'UTF-8') > 50) {
             $language = mb_substr($language, 0, 50, 'UTF-8');
             $lastSpace = mb_strrpos($language, ' ', 0, 'UTF-8');
@@ -338,73 +348,58 @@ function importMovieToDB($movie, $pdo) {
                 $language = mb_substr($language, 0, $lastSpace, 'UTF-8');
             }
         }
-        $stmt->bindValue(':vod_lang', $language);
+        $fields['vod_lang'] = $language;
+
+        if ($existingVodId !== null) {
+            // UPDATE existing movie
+            $setClauses = [];
+            foreach (array_keys($fields) as $field) {
+                $setClauses[] = "`$field` = :$field";
+            }
+            $sql = "UPDATE mac_vod SET " . implode(', ', $setClauses) . " WHERE vod_id = :vod_id";
+            $stmt = $pdo->prepare($sql);
+            $fields['vod_id'] = $existingVodId;
+        } else {
+            // INSERT new movie
+            // Thêm các trường chỉ có khi INSERT
+            $fields['vod_hits'] = 0;
+            $fields['vod_hits_day'] = 0;
+            $fields['vod_hits_week'] = 0;
+            $fields['vod_hits_month'] = 0;
+            $fields['vod_up'] = 0;
+            $fields['vod_down'] = 0;
+            $fields['vod_score'] = 0;
+            $fields['vod_score_all'] = 0;
+            $fields['vod_score_num'] = 0;
+            $fields['vod_author'] = '';
+            $fields['vod_jumpurl'] = '';
+            $fields['vod_time_add'] = time();
+            $fields['vod_time_hits'] = 0;
+            $fields['vod_time_make'] = 0;
+            $fields['vod_douban_id'] = 0;
+            $fields['vod_douban_score'] = 0;
+
+            $sql = "INSERT INTO mac_vod (" . implode(', ', array_map(function($f){ return "`$f`"; }, array_keys($fields))) . ") VALUES (:" . implode(', :', array_keys($fields)) . ")";
+            $stmt = $pdo->prepare($sql);
+        }
         
-        $stmt->bindValue(':vod_state', 1);
-        $stmt->bindValue(':vod_serial', $typeId == 2 ? 0 : 1);
-        $stmt->bindValue(':vod_tv', 0);
-        $stmt->bindValue(':vod_weekday', '');
-        $stmt->bindValue(':vod_total', count($episodeData));
-        $stmt->bindValue(':vod_trysee', 0);
-        $stmt->bindValue(':vod_hits', 0);
-        $stmt->bindValue(':vod_hits_day', 0);
-        $stmt->bindValue(':vod_hits_week', 0);
-        $stmt->bindValue(':vod_hits_month', 0);
-        $stmt->bindValue(':vod_duration', $duration);
-        $stmt->bindValue(':vod_up', 0);
-        $stmt->bindValue(':vod_down', 0);
-        $stmt->bindValue(':vod_score', 0);
-        $stmt->bindValue(':vod_remarks', '');
-        $stmt->bindValue(':vod_author', '');
-        $stmt->bindValue(':vod_jumpurl', '');
-        $stmt->bindValue(':vod_tpl', '');
-        $stmt->bindValue(':vod_tpl_play', '');
-        $stmt->bindValue(':vod_tpl_down', '');
-        $stmt->bindValue(':vod_isend', $typeId == 2 ? 1 : 0);
-        $stmt->bindValue(':vod_lock', 0);
-        $stmt->bindValue(':vod_level', 0);
-        $stmt->bindValue(':vod_copyright', 0);
-        $stmt->bindValue(':vod_points', 0);
-        $stmt->bindValue(':vod_points_play', 0);
-        $stmt->bindValue(':vod_points_down', 0);
-        $stmt->bindValue(':vod_play_from', 'ngm3u8');
-        $stmt->bindValue(':vod_play_server', '');
-        $stmt->bindValue(':vod_play_note', '');
-        $stmt->bindValue(':vod_play_url', json_encode($episodeData));
-        $stmt->bindValue(':vod_down_from', '');
-        $stmt->bindValue(':vod_down_server', '');
-        $stmt->bindValue(':vod_down_note', '');
-        $stmt->bindValue(':vod_down_url', '');
-        $stmt->bindValue(':vod_time', time());
-        $stmt->bindValue(':vod_time_add', time());
-        $stmt->bindValue(':vod_time_hits', time());
-        $stmt->bindValue(':vod_time_make', time());
-        $stmt->bindValue(':vod_douban_id', 0);
-        $stmt->bindValue(':vod_douban_score', 0);
-        $stmt->bindValue(':vod_reurl', '');
-        $stmt->bindValue(':vod_rel_vod', '');
-        $stmt->bindValue(':vod_rel_art', '');
-        $stmt->bindValue(':vod_pwd', '');
-        $stmt->bindValue(':vod_pwd_url', '');
-        $stmt->bindValue(':vod_pwd_play', '');
-        $stmt->bindValue(':vod_pwd_play_url', '');
-        $stmt->bindValue(':vod_pwd_down', '');
-        $stmt->bindValue(':vod_pwd_down_url', '');
-        $stmt->bindValue(':vod_plot', 0);
-        $stmt->bindValue(':vod_plot_name', '');
-        $stmt->bindValue(':vod_plot_detail', '');
-        $stmt->bindValue(':vod_status', 1);
-        $stmt->bindValue(':vod_version', '');
-        $stmt->bindValue(':type_id', $typeId);
+        // Bind values
+        foreach ($fields as $key => $value) {
+             if($key === 'vod_play_url' && is_array($value)) {
+                 $stmt->bindValue(":$key", json_encode($value));
+             } else {
+                 $stmt->bindValue(":$key", $value);
+             }
+         }
         
         $stmt->execute();
         
-        return true;
+        return ['success' => true, 'action' => ($existingVodId !== null ? 'updated' : 'inserted')];
     } catch (PDOException $e) {
-        error_log("Database error when importing movie {$movie['name']}: " . $e->getMessage());
+        error_log("Database error when importing/updating movie {$movie['name']}: " . $e->getMessage());
         return ['error' => 'Lỗi cơ sở dữ liệu: ' . $e->getMessage()];
     } catch (Exception $e) {
-        error_log("General error when importing movie {$movie['name']}: " . $e->getMessage());
+        error_log("General error when importing/updating movie {$movie['name']}: " . $e->getMessage());
         return ['error' => 'Lỗi không xác định: ' . $e->getMessage()];
     }
 }
@@ -439,7 +434,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $startPage = isset($_POST['start_page']) ? (int)$_POST['start_page'] : 1;
     $endPage = isset($_POST['end_page']) ? (int)$_POST['end_page'] : 1;
     $limit = isset($_POST['limit']) ? (int)$_POST['limit'] : 10;
-    $force = isset($_POST['force']) && $_POST['force'] === '1';
+    $update_existing = isset($_POST['update_existing']) && $_POST['update_existing'] === '1'; // Đổi tên biến
     $category = isset($_POST['category']) ? $_POST['category'] : 'phim-moi-cap-nhat';
     
     // Validate category
@@ -464,6 +459,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $totalImportedCount = 0;
                 $totalSkippedCount = 0;
+                $totalUpdatedCount = 0; // Thêm biến đếm cập nhật
                 $totalMoviesCount = 0;
                 $result['pages'] = [];
                 
@@ -477,6 +473,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'total' => 0,
                         'imported' => 0,
                         'skipped' => 0,
+                        'updated' => 0, // Thêm đếm cập nhật cho trang
                         'errors' => []
                     ];
                     
@@ -487,66 +484,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (isset($response['data'])) {
                         $data = json_decode($response['data'], true);
                         if (json_last_error() === JSON_ERROR_NONE && isset($data['items']) && !empty($data['items'])) {
-                            $totalMovies = count($data['items']);
+                            $moviesOnPage = $data['items'];
+                            $totalMoviesOnPage = count($moviesOnPage);
                             $importedCount = 0;
                             $skippedCount = 0;
+                            $updatedCount = 0; // Đếm cập nhật cho trang
                             
-                            $pageResult['total'] = $totalMovies;
+                            $pageResult['total'] = $totalMoviesOnPage;
                             
-                            foreach ($data['items'] as $index => $movie) {
-                                if ($index >= $limit) break;
+                            // Giới hạn số lượng phim xử lý trên mỗi trang
+                            $moviesToProcess = array_slice($moviesOnPage, 0, $limit);
+                            
+                            foreach ($moviesToProcess as $movie) {
+                                $totalMoviesCount++; // Đếm tổng số phim đã xử lý
                                 
                                 // Check if movie already exists
                                 $stmt = $pdo->prepare("SELECT vod_id FROM mac_vod WHERE vod_sub = ?");
                                 $stmt->execute([$movie['slug']]);
-                                $exists = $stmt->fetch();
+                                $existingMovie = $stmt->fetch(PDO::FETCH_ASSOC);
                                 
-                                if ($exists && !$force) {
-                                    $pageResult['skipped']++;
-                                    $skippedCount++;
-                                    continue;
+                                // Fetch detailed movie information regardless of existence if update is enabled
+                                $movieDetails = null;
+                                if (!$existingMovie || $update_existing) {
+                                    $movieDetails = fetchMovieDetails($movie['slug']);
                                 }
-                                
-                                // Fetch detailed movie information
-                                $movieDetails = fetchMovieDetails($movie['slug']);
-                                if ($movieDetails) {
-                                    // Determine type_id based on category information
-                                    $movieDetails['type_id'] = determineTypeId($movieDetails['category']);
+
+                                if ($existingMovie) {
+                                    if ($update_existing && $movieDetails) {
+                                        // Cập nhật phim hiện có
+                                        $importResult = importMovieToDB($movieDetails, $pdo, $existingMovie['vod_id']);
+                                        if ($importResult['success']) {
+                                            $pageResult['updated']++;
+                                            $updatedCount++;
+                                        } else {
+                                            $pageResult['errors'][] = "Lỗi cập nhật phim '{$movie['name']}': " . ($importResult['error'] ?? 'Unknown error');
+                                        }
+                                    } else {
+                                        // Bỏ qua phim hiện có nếu không chọn cập nhật
+                                        $pageResult['skipped']++;
+                                        $skippedCount++;
+                                    }
+                                } elseif ($movieDetails) {
+                                    // Import phim mới
                                     $importResult = importMovieToDB($movieDetails, $pdo);
-                                    if ($importResult === true) {
+                                    if ($importResult['success']) {
                                         $pageResult['imported']++;
                                         $importedCount++;
                                     } else {
-                                        
-                                        if (is_array($importResult) && isset($importResult['error'])) {
-                                            $pageResult['errors'][] = $importResult['error'];
-                                        } else {
-                                            $pageResult['errors'][] = 'Lỗi không xác định khi import dữ liệu.';
-                                        }
+                                        $pageResult['errors'][] = "Lỗi import phim '{$movie['name']}': " . ($importResult['error'] ?? 'Unknown error');
                                     }
                                 } else {
-                                    $pageResult['errors'][] = "Không thể lấy thông tin chi tiết phim {$movie['name']}.";
+                                    // Lỗi không lấy được chi tiết phim mới
+                                     $pageResult['errors'][] = "Không thể lấy thông tin chi tiết phim mới '{$movie['name']}'.";
+                                     error_log("Skipping movie '{$movie['name']}' (slug: {$movie['slug']}) because details could not be fetched.");
                                 }
                             }
                             
                             $totalImportedCount += $importedCount;
                             $totalSkippedCount += $skippedCount;
-                            $totalMoviesCount += $totalMovies;
+                            $totalUpdatedCount += $updatedCount;
                             
                         } else {
-                            $pageResult['errors'][] = "Lỗi khi parse JSON hoặc không tìm thấy phim nào trên trang {$page}.";
+                            $pageResult['errors'][] = "Lỗi khi parse JSON hoặc không tìm thấy phim nào trên trang {$page}. Chi tiết lỗi JSON: " . json_last_error_msg();
+                            error_log("JSON parse error or no items found on page {$page}. Response: " . $response['data']);
                         }
                     } else {
-                        $pageResult['errors'][] = "Không thể kết nối đến API cho trang {$page}: " . $response['error'];
+                        $pageResult['errors'][] = "Không thể kết nối đến API cho trang {$page}: " . ($response['error'] ?? 'Lỗi không xác định');
                     }
                     
                     $result['pages'][] = $pageResult;
                 }
                 
                 $result['summary'] = [
-                    'total_movies' => $totalMoviesCount,
+                    'total_movies_processed' => $totalMoviesCount,
                     'total_imported' => $totalImportedCount,
-                    'total_skipped' => $totalSkippedCount
+                    'total_skipped' => $totalSkippedCount,
+                    'total_updated' => $totalUpdatedCount // Thêm tổng số cập nhật
                 ];
                 
             } catch (PDOException $e) {
@@ -591,19 +604,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Xử lý phim đã tồn tại:</label>
                                 <div class="flex space-x-4">
                                     <label class="inline-flex items-center">
-                                        <input type="radio" name="force" id="force_skip" value="0" checked class="form-radio h-4 w-4 text-blue-600">
+                                        <input type="radio" name="update_existing" value="0" checked class="form-radio h-4 w-4 text-blue-600">
                                         <span class="ml-2 text-gray-700">Bỏ qua</span>
                                     </label>
                                     <label class="inline-flex items-center">
-                                        <input type="radio" name="force" id="force_overwrite" value="1" class="form-radio h-4 w-4 text-blue-600">
-                                        <span class="ml-2 text-gray-700">Ghi đè</span>
+                                        <input type="radio" name="update_existing" value="1" class="form-radio h-4 w-4 text-blue-600">
+                                        <span class="ml-2 text-gray-700">Cập nhật</span>
                                     </label>
                                 </div>
                             </div>
                         </div>
                         <div class="mt-6">
                             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" id="importButton">
-                                <i class="fas fa-download mr-2"></i>Import Phim
+                                <i class="fas fa-download mr-2"></i>Import / Cập nhật Phim
                             </button>
                         </div>
                     </form>
@@ -611,17 +624,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 <!-- Progress Section -->
                 <div id="progressSection" style="display: none;" class="bg-white rounded-lg shadow-sm p-6 mb-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Tiến độ import:</h3>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Tiến độ:</h3>
                     <div class="w-full bg-gray-200 rounded-full h-6 mb-4 relative">
                         <div class="progress-bar bg-blue-600 h-6 rounded-full flex items-center justify-center text-xs text-white font-medium" id="importProgress" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div class="bg-gray-50 rounded-lg p-4">
-                            <h5 class="text-md font-medium text-gray-700 mb-3">Thông tin import</h5>
+                            <h5 class="text-md font-medium text-gray-700 mb-3">Thống kê</h5>
                             <div class="space-y-2">
                                 <p class="text-sm text-gray-600" id="currentPage">Trang: 0/0</p>
                                 <p class="text-sm text-gray-600" id="currentMovie">Phim: 0/0</p>
-                                <p class="text-sm text-green-600" id="importedCount">Đã import: 0 phim</p>
+                                <p class="text-sm text-green-600" id="importedCount">Đã import mới: 0 phim</p>
+                                <p class="text-sm text-blue-600" id="updatedCount">Đã cập nhật: 0 phim</p>
                                 <p class="text-sm text-yellow-600" id="skippedCount">Đã bỏ qua: 0 phim</p>
                             </div>
                         </div>
@@ -630,8 +644,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="space-y-2">
                                 <p class="text-sm text-gray-600" id="elapsedTime">Đã trải qua: 0 giây</p>
                                 <p class="text-sm text-gray-600" id="estimatedTime">Thời gian còn lại: Đang tính toán...</p>
-                                <p class="text-sm text-gray-600" id="statusMessage">Đang chuẩn bị...</p>
                             </div>
+                        </div>
+                         <div class="bg-gray-50 rounded-lg p-4">
+                             <h5 class="text-md font-medium text-gray-700 mb-3">Trạng thái</h5>
+                             <p class="text-sm text-gray-600" id="statusMessage">Đang chuẩn bị...</p>
                         </div>
                     </div>
                 </div>
@@ -641,15 +658,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="bg-white rounded-lg shadow-sm p-6">
                     <?php if (isset($result['error'])): ?>
                         <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
-                            <p><?php echo $result['error']; ?></p>
+                            <p><?php echo htmlspecialchars($result['error']); ?></p>
                         </div>
                     <?php else: ?>
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Kết quả import:</h3>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Kết quả:</h3>
                         
                         <?php if (isset($result['summary'])): ?>
                             <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-4">
-                                <p class="font-medium">Tổng số phim đã xử lý: <?php echo $result['summary']['total_movies']; ?></p>
-                                <p class="font-medium">Tổng số phim đã import: <?php echo $result['summary']['total_imported']; ?></p>
+                                <p class="font-medium">Tổng số phim đã xử lý: <?php echo $result['summary']['total_movies_processed']; ?></p>
+                                <p class="font-medium">Tổng số phim mới đã import: <?php echo $result['summary']['total_imported']; ?></p>
+                                <p class="font-medium">Tổng số phim đã cập nhật: <?php echo $result['summary']['total_updated']; ?></p>
                                 <p class="font-medium">Tổng số phim đã bỏ qua: <?php echo $result['summary']['total_skipped']; ?></p>
                             </div>
                         <?php endif; ?>
@@ -661,11 +679,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <table class="min-w-full divide-y divide-gray-200">
                                     <thead class="bg-gray-50">
                                         <tr>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Đã lấy</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trang</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng phim</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Import mới</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cập nhật</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bỏ qua</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lỗi</th>
                                         </tr>
                                     </thead>
                                     <tbody class="bg-white divide-y divide-gray-200">
@@ -673,20 +692,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             <tr class="hover:bg-gray-50">
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo $pageResult['page']; ?></td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo $pageResult['total']; ?></td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo $pageResult['imported']; ?></td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo $pageResult['skipped']; ?></td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600"><?php echo $pageResult['imported']; ?></td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600"><?php echo $pageResult['updated']; ?></td>
+                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-yellow-600"><?php echo $pageResult['skipped']; ?></td>
                                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                     <?php if (!empty($pageResult['errors'])): ?>
-                                                        <button type="button" class="text-blue-600 hover:text-blue-900 mr-3" onclick="togglePageDetails(<?php echo $pageResult['page']; ?>)">
-                                                            <i class="fas fa-info-circle"></i> Xem chi tiết
+                                                        <button type="button" class="text-red-600 hover:text-red-900 mr-3" onclick="togglePageDetails(<?php echo $pageResult['page']; ?>)">
+                                                            <?php echo count($pageResult['errors']); ?> lỗi
                                                         </button>
+                                                    <?php else: ?>
+                                                        <span class="text-gray-500">Không có lỗi</span>
                                                     <?php endif; ?>
                                                 </td>
                                             </tr>
                                             <?php if (!empty($pageResult['errors'])): ?>
-                                                <tr id="pageDetails<?php echo $pageResult['page']; ?>" class="hidden bg-gray-50">
-                                    <td colspan="5" class="px-6 py-4">
-                                                        <div class="text-sm text-red-600">
+                                                <tr id="pageDetails<?php echo $pageResult['page']; ?>" class="hidden bg-red-50">
+                                    <td colspan="6" class="px-6 py-4">
+                                                        <div class="text-sm text-red-700">
                                                             <h6 class="font-medium mb-2">Chi tiết lỗi:</h6>
                                                             <ul class="list-disc pl-5 space-y-1">
                                                                 <?php foreach ($pageResult['errors'] as $error): ?>
@@ -716,8 +738,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             const importProgress = document.getElementById('importProgress');
             const currentPage = document.getElementById('currentPage');
             const currentMovie = document.getElementById('currentMovie');
-            const importedCount = document.getElementById('importedCount');
-            const skippedCount = document.getElementById('skippedCount');
+            const importedCountEl = document.getElementById('importedCount');
+            const updatedCountEl = document.getElementById('updatedCount');
+            const skippedCountEl = document.getElementById('skippedCount');
             const elapsedTime = document.getElementById('elapsedTime');
             const estimatedTime = document.getElementById('estimatedTime');
             const statusMessage = document.getElementById('statusMessage');
@@ -726,44 +749,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             let timerInterval;
             let progressInterval;
             let totalPages;
-            let totalMovies;
+            let totalMoviesToProcess;
             let processedMovies = 0;
             let importedMovies = 0;
+            let updatedMovies = 0;
             let skippedMovies = 0;
             
             importForm.addEventListener('submit', function(e) {
                 e.preventDefault();
                 
-                // Hiển thị phần tiến độ
                 progressSection.style.display = 'block';
                 
-                // Lấy thông tin từ form
                 const startPage = parseInt(document.getElementById('start_page').value);
                 const endPage = parseInt(document.getElementById('end_page').value);
                 const limit = parseInt(document.getElementById('limit').value);
                 
-                // Tính toán tổng số trang và phim
                 totalPages = endPage - startPage + 1;
-                totalMovies = totalPages * limit;
+                totalMoviesToProcess = totalPages * limit;
                 
-                // Khởi tạo biến theo dõi
                 processedMovies = 0;
                 importedMovies = 0;
+                updatedMovies = 0;
                 skippedMovies = 0;
                 startTime = new Date();
                 
-                // Bắt đầu đếm thời gian
                 clearInterval(timerInterval);
                 timerInterval = setInterval(updateTimer, 1000);
                 
-                // Cập nhật trạng thái ban đầu
-                updateProgress(0, 0, 0);
-                statusMessage.textContent = 'Đang bắt đầu import...';
+                updateProgressUI(0, 0, 0);
+                statusMessage.textContent = 'Đang bắt đầu...';
                 
-                // Bắt đầu mô phỏng tiến độ
-                startProgressSimulation();
-                
-                // Gửi form bằng AJAX
                 const formData = new FormData(importForm);
                 
                 fetch('', {
@@ -772,39 +787,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 })
                 .then(response => response.text())
                 .then(html => {
-                    // Dừng mô phỏng tiến độ
-                    clearInterval(progressInterval);
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newBody = doc.body;
+                    document.body.innerHTML = newBody.innerHTML;
                     
-                    // Cập nhật tiến độ khi nhận được phản hồi
-                    updateProgress(100, totalPages, totalMovies);
-                    statusMessage.textContent = 'Import hoàn tất!';
                     clearInterval(timerInterval);
-                    
-                    // Cập nhật nội dung trang
-                    document.body.innerHTML = html;
+                    statusMessage.textContent = 'Hoàn tất!';
+                    progressSection.style.display = 'none';
                 })
                 .catch(error => {
-                    // Dừng mô phỏng tiến độ
-                    clearInterval(progressInterval);
-                    
-                    statusMessage.textContent = 'Lỗi: ' + error.message;
                     clearInterval(timerInterval);
+                    statusMessage.textContent = 'Lỗi: ' + error.message;
+                    progressSection.style.display = 'none';
+                    console.error('Fetch error:', error);
+                    alert('Có lỗi xảy ra trong quá trình xử lý. Vui lòng kiểm tra Console.');
                 });
             });
             
-            function updateProgress(percent, currentPageNum, currentMovieNum) {
-                // Cập nhật thanh tiến độ
+            function updateProgressUI(percent, currentPageNum, currentMovieNumInPage) {
                 importProgress.style.width = percent + '%';
                 importProgress.textContent = percent + '%';
                 importProgress.setAttribute('aria-valuenow', percent);
                 
-                // Cập nhật thông tin trang và phim
                 currentPage.textContent = `Trang: ${currentPageNum}/${totalPages}`;
-                currentMovie.textContent = `Phim: ${currentMovieNum}/${totalMovies}`;
-                
-                // Cập nhật số lượng phim đã import và bỏ qua
-                importedCount.textContent = `Đã import: ${importedMovies} phim`;
-                skippedCount.textContent = `Đã bỏ qua: ${skippedMovies} phim`;
+                importedCountEl.textContent = `Đã import mới: ${importedMovies} phim`;
+                updatedCountEl.textContent = `Đã cập nhật: ${updatedMovies} phim`;
+                skippedCountEl.textContent = `Đã bỏ qua: ${skippedMovies} phim`;
             }
             
             function updateTimer() {
@@ -813,13 +822,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 elapsedTime.textContent = `Đã trải qua: ${formatTime(elapsed)}`;
                 
-                if (processedMovies > 0) {
-                    const timePerMovie = elapsed / processedMovies;
-                    const remainingMovies = totalMovies - processedMovies;
-                    const remainingSeconds = Math.ceil(timePerMovie * remainingMovies);
-                    
-                    estimatedTime.textContent = `Thời gian còn lại: ${formatTime(remainingSeconds)}`;
-                }
+                estimatedTime.textContent = `Thời gian còn lại: Đang tính toán...`;
             }
             
             function formatTime(seconds) {
@@ -835,74 +838,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     return `${hours} giờ ${minutes} phút`;
                 }
             }
-            
-            function startProgressSimulation() {
-                // Xóa interval cũ nếu có
-                if (progressInterval) {
-                    clearInterval(progressInterval);
-                }
-                
-                let currentPageNum = 0;
-                let currentMovieNum = 0;
-                let progressPercent = 0;
-                
-                // Tạo interval mới để cập nhật tiến độ
-                progressInterval = setInterval(() => {
-                    // Kiểm tra nếu đã xử lý hết tất cả phim
-                    if (currentMovieNum >= totalMovies) {
-                        clearInterval(progressInterval);
-                        return;
-                    }
-                    
-                    // Xử lý một số phim mỗi lần cập nhật
-                    const moviesToProcess = Math.ceil(Math.random() * 3) + 1; // 1-3 phim mỗi lần
-                    
-                    for (let i = 0; i < moviesToProcess; i++) {
-                        if (currentMovieNum >= totalMovies) {
-                            break;
-                        }
-                        
-                        // Xử lý phim tiếp theo
-                        currentMovieNum++;
-                        processedMovies++;
-                        
-                        // Ngẫu nhiên quyết định phim được import hay bỏ qua
-                        if (Math.random() > 0.3) {
-                            importedMovies++;
-                        } else {
-                            skippedMovies++;
-                        }
-                        
-                        // Cập nhật số trang hiện tại
-                        currentPageNum = Math.ceil(currentMovieNum / (totalMovies / totalPages));
-                    }
-                    
-                    // Cập nhật tiến độ
-                    progressPercent = Math.min(100, Math.floor((currentMovieNum / totalMovies) * 100));
-                    updateProgress(progressPercent, currentPageNum, currentMovieNum);
-                    
-                    // Cập nhật thông báo trạng thái
-                    if (currentMovieNum % 5 === 0 || currentMovieNum === 1) {
-                        statusMessage.textContent = `Đang xử lý trang ${currentPageNum}, phim ${currentMovieNum}/${totalMovies}...`;
-                    }
-                }, 500); // Cập nhật mỗi 500ms
-            }
         });
 
         function togglePageDetails(pageNum) {
             const detailsRow = document.getElementById(`pageDetails${pageNum}`);
             if (detailsRow) {
                 if (detailsRow.classList.contains('hidden')) {
-                    // Đóng tất cả các chi tiết khác trước khi mở cái mới
                     document.querySelectorAll('[id^="pageDetails"]').forEach(row => {
                         if (row.id !== `pageDetails${pageNum}`) {
                             row.classList.add('hidden');
                         }
                     });
-                    // Mở chi tiết được chọn
                     detailsRow.classList.remove('hidden');
                 } else {
-                    // Đóng chi tiết nếu đang mở
                     detailsRow.classList.add('hidden');
                 }
             }
