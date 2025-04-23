@@ -1,6 +1,7 @@
 <?php
 require_once 'config.php';
 require_once 'auth.php';
+require_once 'layout.php';
 
 // Kiểm tra xác thực
 checkAuth();
@@ -18,6 +19,29 @@ try {
     );
 } catch (PDOException $e) {
     die("Lỗi kết nối cơ sở dữ liệu: " . $e->getMessage());
+}
+
+// Tạo bảng mac_import_queue nếu chưa tồn tại
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS mac_import_queue (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        category VARCHAR(50) NOT NULL,
+        start_page INT NOT NULL,
+        end_page INT NOT NULL,
+        limit_per_page INT NOT NULL,
+        update_existing TINYINT(1) NOT NULL DEFAULT 0,
+        status ENUM('pending', 'processing', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+        progress INT NOT NULL DEFAULT 0,
+        total_movies INT NOT NULL DEFAULT 0,
+        imported_movies INT NOT NULL DEFAULT 0,
+        updated_movies INT NOT NULL DEFAULT 0,
+        skipped_movies INT NOT NULL DEFAULT 0,
+        error_message TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
+} catch (PDOException $e) {
+    error_log("Error creating mac_import_queue table: " . $e->getMessage());
 }
 
 $pageTitle = 'Import Phim';
@@ -428,431 +452,435 @@ $movieCategories = [
     ]
 ];
 
-// Process form submission
-$result = [];
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $startPage = isset($_POST['start_page']) ? (int)$_POST['start_page'] : 1;
-    $endPage = isset($_POST['end_page']) ? (int)$_POST['end_page'] : 1;
-    $limit = isset($_POST['limit']) ? (int)$_POST['limit'] : 10;
-    $update_existing = isset($_POST['update_existing']) && $_POST['update_existing'] === '1'; // Đổi tên biến
-    $category = isset($_POST['category']) ? $_POST['category'] : 'phim-moi-cap-nhat';
-    
-    // Validate category
-    if (!array_key_exists($category, $movieCategories)) {
-        $result['error'] = "Danh mục không hợp lệ.";
-    } else {
-        // Validate page range
-        if ($startPage > $endPage) {
-            $result['error'] = "Lỗi: Trang bắt đầu phải nhỏ hơn hoặc bằng trang kết thúc.";
-        } else {
-            // Connect to database
-            try {
-                $pdo = new PDO(
-                    "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
-                    DB_USER,
-                    DB_PASS,
-                    [
-                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
-                    ]
-                );
-                
-                $totalImportedCount = 0;
-                $totalSkippedCount = 0;
-                $totalUpdatedCount = 0; // Thêm biến đếm cập nhật
-                $totalMoviesCount = 0;
-                $result['pages'] = [];
-                
-                // Modify the API URL based on selected category
-                $categoryUrl = $movieCategories[$category]['url'];
-                
-                // Process each page
-                for ($page = $startPage; $page <= $endPage; $page++) {
-                    $pageResult = [
-                        'page' => $page,
-                        'total' => 0,
-                        'imported' => 0,
-                        'skipped' => 0,
-                        'updated' => 0, // Thêm đếm cập nhật cho trang
-                        'errors' => []
-                    ];
-                    
-                    // Fetch movies from API using category URL
-                    $url = API_BASE_URL . $categoryUrl . "?page=" . $page;
-                    $response = makeRequest($url);
-                    
-                    if (isset($response['data'])) {
-                        $data = json_decode($response['data'], true);
-                        if (json_last_error() === JSON_ERROR_NONE && isset($data['items']) && !empty($data['items'])) {
-                            $moviesOnPage = $data['items'];
-                            $totalMoviesOnPage = count($moviesOnPage);
-                            $importedCount = 0;
-                            $skippedCount = 0;
-                            $updatedCount = 0; // Đếm cập nhật cho trang
-                            
-                            $pageResult['total'] = $totalMoviesOnPage;
-                            
-                            // Giới hạn số lượng phim xử lý trên mỗi trang
-                            $moviesToProcess = array_slice($moviesOnPage, 0, $limit);
-                            
-                            foreach ($moviesToProcess as $movie) {
-                                $totalMoviesCount++; // Đếm tổng số phim đã xử lý
-                                
-                                // Check if movie already exists
-                                $stmt = $pdo->prepare("SELECT vod_id FROM mac_vod WHERE vod_sub = ?");
-                                $stmt->execute([$movie['slug']]);
-                                $existingMovie = $stmt->fetch(PDO::FETCH_ASSOC);
-                                
-                                // Fetch detailed movie information regardless of existence if update is enabled
-                                $movieDetails = null;
-                                if (!$existingMovie || $update_existing) {
-                                    $movieDetails = fetchMovieDetails($movie['slug']);
-                                }
+// Hàm thêm tác vụ vào queue
+function addToQueue($category, $startPage, $endPage, $limitPerPage, $updateExisting) {
+    try {
+        $stmt = $pdo->prepare("INSERT INTO mac_import_queue (category, start_page, end_page, limit_per_page, update_existing) 
+                              VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$category, $startPage, $endPage, $limitPerPage, $updateExisting ? 1 : 0]);
+        return $pdo->lastInsertId();
+    } catch (PDOException $e) {
+        error_log("Error adding task to queue: " . $e->getMessage());
+        return false;
+    }
+}
 
-                                if ($existingMovie) {
-                                    if ($update_existing && $movieDetails) {
-                                        // Cập nhật phim hiện có
-                                        $importResult = importMovieToDB($movieDetails, $pdo, $existingMovie['vod_id']);
-                                        if ($importResult['success']) {
-                                            $pageResult['updated']++;
-                                            $updatedCount++;
-                                        } else {
-                                            $pageResult['errors'][] = "Lỗi cập nhật phim '{$movie['name']}': " . ($importResult['error'] ?? 'Unknown error');
-                                        }
-                                    } else {
-                                        // Bỏ qua phim hiện có nếu không chọn cập nhật
-                                        $pageResult['skipped']++;
-                                        $skippedCount++;
-                                    }
-                                } elseif ($movieDetails) {
-                                    // Import phim mới
-                                    $importResult = importMovieToDB($movieDetails, $pdo);
-                                    if ($importResult['success']) {
-                                        $pageResult['imported']++;
-                                        $importedCount++;
-                                    } else {
-                                        $pageResult['errors'][] = "Lỗi import phim '{$movie['name']}': " . ($importResult['error'] ?? 'Unknown error');
-                                    }
-                                } else {
-                                    // Lỗi không lấy được chi tiết phim mới
-                                     $pageResult['errors'][] = "Không thể lấy thông tin chi tiết phim mới '{$movie['name']}'.";
-                                     error_log("Skipping movie '{$movie['name']}' (slug: {$movie['slug']}) because details could not be fetched.");
-                                }
+// Hàm lấy danh sách tác vụ trong queue
+function getQueueTasks($pdo, $limit = 10) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM mac_import_queue ORDER BY created_at DESC LIMIT ?");
+        $stmt->execute([$limit]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log("Error getting queue tasks: " . $e->getMessage());
+        return [];
+    }
+}
+
+// Xử lý form submit
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $category = $_POST['category'] ?? '';
+    $startPage = (int)($_POST['start_page'] ?? 1);
+    $endPage = (int)($_POST['end_page'] ?? 1);
+    $limitPerPage = (int)($_POST['limit_per_page'] ?? 20);
+    $updateExisting = isset($_POST['update_existing']) ? 1 : 0;
+    $useQueue = isset($_POST['use_queue']) ? 1 : 0;
+
+    if ($useQueue) {
+        // Thêm vào queue
+        $queueId = addToQueue($category, $startPage, $endPage, $limitPerPage, $updateExisting);
+        if ($queueId) {
+            // Chạy script xử lý queue trong background
+            $cmd = sprintf(
+                'php process_import_queue.php %d > /dev/null 2>&1 &',
+                $queueId
+            );
+            exec($cmd);
+            
+            $message = "Đã thêm tác vụ vào queue. ID: " . $queueId;
+            $messageType = 'success';
+        } else {
+            $message = "Không thể thêm tác vụ vào queue";
+            $messageType = 'error';
+        }
+    } else {
+        // Xử lý trực tiếp
+        try {
+            $totalMovies = 0;
+            $importedMovies = 0;
+            $updatedMovies = 0;
+            $skippedMovies = 0;
+
+            for ($page = $startPage; $page <= $endPage; $page++) {
+                $movies = fetchMovieList($category, $page, $limitPerPage);
+                if (empty($movies)) {
+                    break;
+                }
+
+                foreach ($movies as $movie) {
+                    $totalMovies++;
+                    
+                    // Kiểm tra phim đã tồn tại chưa
+                    $stmt = $pdo->prepare("SELECT vod_id FROM mac_vod WHERE vod_name = ?");
+                    $stmt->execute([$movie['name']]);
+                    $existingMovie = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                    if ($existingMovie) {
+                        if ($updateExisting) {
+                            // Cập nhật phim
+                            $movieDetails = fetchMovieDetails($movie['slug']);
+                            if ($movieDetails) {
+                                importMovieToDB($movieDetails, $pdo, $existingMovie['vod_id']);
+                                $updatedMovies++;
                             }
-                            
-                            $totalImportedCount += $importedCount;
-                            $totalSkippedCount += $skippedCount;
-                            $totalUpdatedCount += $updatedCount;
-                            
                         } else {
-                            $pageResult['errors'][] = "Lỗi khi parse JSON hoặc không tìm thấy phim nào trên trang {$page}. Chi tiết lỗi JSON: " . json_last_error_msg();
-                            error_log("JSON parse error or no items found on page {$page}. Response: " . $response['data']);
+                            $skippedMovies++;
                         }
                     } else {
-                        $pageResult['errors'][] = "Không thể kết nối đến API cho trang {$page}: " . ($response['error'] ?? 'Lỗi không xác định');
+                        // Import phim mới
+                        $movieDetails = fetchMovieDetails($movie['slug']);
+                        if ($movieDetails) {
+                            importMovieToDB($movieDetails, $pdo);
+                            $importedMovies++;
+                        }
                     }
-                    
-                    $result['pages'][] = $pageResult;
                 }
-                
-                $result['summary'] = [
-                    'total_movies_processed' => $totalMoviesCount,
-                    'total_imported' => $totalImportedCount,
-                    'total_skipped' => $totalSkippedCount,
-                    'total_updated' => $totalUpdatedCount // Thêm tổng số cập nhật
-                ];
-                
-            } catch (PDOException $e) {
-                $result['error'] = "Lỗi kết nối cơ sở dữ liệu: " . $e->getMessage();
-            } catch (Exception $e) {
-                $result['error'] = "Lỗi: " . $e->getMessage();
             }
+
+            $message = sprintf(
+                "Hoàn thành! Tổng: %d, Import: %d, Cập nhật: %d, Bỏ qua: %d",
+                $totalMovies,
+                $importedMovies,
+                $updatedMovies,
+                $skippedMovies
+            );
+            $messageType = 'success';
+        } catch (Exception $e) {
+            $message = "Lỗi: " . $e->getMessage();
+            $messageType = 'error';
         }
     }
 }
+
+// Lấy danh sách tác vụ trong queue
+$queueTasks = getQueueTasks($pdo);
+
 ?>
-                <div class="mb-6">
-                    <h1 class="text-2xl font-bold text-gray-800">Import Phim</h1>
-                    <p class="text-gray-600">Nhập thông tin để import phim từ nguồn dữ liệu</p>
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Import Phim</h3>
                 </div>
-                
-                <!-- Import Form -->
-                <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
-                    <form method="post" action="" id="importForm">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label for="category" class="block text-sm font-medium text-gray-700 mb-1">Danh mục phim:</label>
-                <select class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" id="category" name="category" required>
-                    <?php foreach ($movieCategories as $key => $category): ?>
-                        <option value="<?php echo htmlspecialchars($key); ?>"><?php echo htmlspecialchars($category['name']); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-                            <div>
-                                <label for="start_page" class="block text-sm font-medium text-gray-700 mb-1">Trang bắt đầu:</label>
-                                <input type="number" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" id="start_page" name="start_page" value="1" min="1" required>
+                <div class="card-body">
+                    <?php if (isset($message)): ?>
+                        <div class="alert alert-<?php echo $messageType; ?>"><?php echo $message; ?></div>
+                    <?php endif; ?>
+
+                    <form method="post" id="importForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Danh mục phim</label>
+                                    <select name="category" class="form-control" required>
+                                        <option value="">Chọn danh mục</option>
+                                        <?php foreach ($movieCategories as $key => $value): ?>
+                                            <option value="<?php echo $key; ?>"><?php echo $value['name']; ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Trang bắt đầu</label>
+                                    <input type="number" name="start_page" class="form-control" value="1" min="1" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Trang kết thúc</label>
+                                    <input type="number" name="end_page" class="form-control" value="1" min="1" required>
+                                </div>
                             </div>
-                            <div>
-                                <label for="end_page" class="block text-sm font-medium text-gray-700 mb-1">Trang kết thúc:</label>
-                                <input type="number" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" id="end_page" name="end_page" value="1" min="1" required>
-                            </div>
-                            <div>
-                                <label for="limit" class="block text-sm font-medium text-gray-700 mb-1">Số lượng phim tối đa trên mỗi trang:</label>
-                                <input type="number" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" id="limit" name="limit" value="10" min="1" required>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Xử lý phim đã tồn tại:</label>
-                                <div class="flex space-x-4">
-                                    <label class="inline-flex items-center">
-                                        <input type="radio" name="update_existing" value="0" checked class="form-radio h-4 w-4 text-blue-600">
-                                        <span class="ml-2 text-gray-700">Bỏ qua</span>
-                                    </label>
-                                    <label class="inline-flex items-center">
-                                        <input type="radio" name="update_existing" value="1" class="form-radio h-4 w-4 text-blue-600">
-                                        <span class="ml-2 text-gray-700">Cập nhật</span>
-                                    </label>
+
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label>Số phim mỗi trang</label>
+                                    <input type="number" name="limit_per_page" class="form-control" value="20" min="1" max="50" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" class="custom-control-input" id="updateExisting" name="update_existing">
+                                        <label class="custom-control-label" for="updateExisting">Cập nhật phim đã tồn tại</label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <div class="custom-control custom-switch">
+                                        <input type="checkbox" class="custom-control-input" id="useQueue" name="use_queue">
+                                        <label class="custom-control-label" for="useQueue">Xử lý trong background (Queue)</label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-6">
-                            <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" id="importButton">
-                                <i class="fas fa-download mr-2"></i>Import / Cập nhật Phim
-                            </button>
-                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-download"></i> Import
+                        </button>
                     </form>
-                </div>
-                
-                <!-- Progress Section -->
-                <div id="progressSection" style="display: none;" class="bg-white rounded-lg shadow-sm p-6 mb-6">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Tiến độ:</h3>
-                    <div class="w-full bg-gray-200 rounded-full h-6 mb-4 relative">
-                        <div class="progress-bar bg-blue-600 h-6 rounded-full flex items-center justify-center text-xs text-white font-medium" id="importProgress" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+
+                    <!-- Progress Section -->
+                    <div id="progressSection" class="mt-4" style="display: none;">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Tiến độ Import</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="progress mb-3">
+                                    <div id="importProgress" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                         role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p id="currentPage" class="mb-2">Trang: 0/0</p>
+                                        <p id="currentMovie" class="mb-2">Đang xử lý: -</p>
+                                        <p id="elapsedTime" class="mb-2">Thời gian đã trôi qua: 0:00</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p id="importedCount" class="mb-2 text-success">Đã import mới: 0 phim</p>
+                                        <p id="updatedCount" class="mb-2 text-info">Đã cập nhật: 0 phim</p>
+                                        <p id="skippedCount" class="mb-2 text-warning">Đã bỏ qua: 0 phim</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-info" id="statusMessage">
+                                    Đang chuẩn bị...
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <h5 class="text-md font-medium text-gray-700 mb-3">Thống kê</h5>
-                            <div class="space-y-2">
-                                <p class="text-sm text-gray-600" id="currentPage">Trang: 0/0</p>
-                                <p class="text-sm text-gray-600" id="currentMovie">Phim: 0/0</p>
-                                <p class="text-sm text-green-600" id="importedCount">Đã import mới: 0 phim</p>
-                                <p class="text-sm text-blue-600" id="updatedCount">Đã cập nhật: 0 phim</p>
-                                <p class="text-sm text-yellow-600" id="skippedCount">Đã bỏ qua: 0 phim</p>
+
+                    <!-- Queue Tasks Section -->
+                    <div class="mt-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Danh sách tác vụ trong Queue</h5>
                             </div>
-                        </div>
-                        <div class="bg-gray-50 rounded-lg p-4">
-                            <h5 class="text-md font-medium text-gray-700 mb-3">Thời gian</h5>
-                            <div class="space-y-2">
-                                <p class="text-sm text-gray-600" id="elapsedTime">Đã trải qua: 0 giây</p>
-                                <p class="text-sm text-gray-600" id="estimatedTime">Thời gian còn lại: Đang tính toán...</p>
-                            </div>
-                        </div>
-                         <div class="bg-gray-50 rounded-lg p-4">
-                             <h5 class="text-md font-medium text-gray-700 mb-3">Trạng thái</h5>
-                             <p class="text-sm text-gray-600" id="statusMessage">Đang chuẩn bị...</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Results Section -->
-                <?php if (!empty($result)): ?>
-                <div class="bg-white rounded-lg shadow-sm p-6">
-                    <?php if (isset($result['error'])): ?>
-                        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
-                            <p><?php echo htmlspecialchars($result['error']); ?></p>
-                        </div>
-                    <?php else: ?>
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Kết quả:</h3>
-                        
-                        <?php if (isset($result['summary'])): ?>
-                            <div class="bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-4">
-                                <p class="font-medium">Tổng số phim đã xử lý: <?php echo $result['summary']['total_movies_processed']; ?></p>
-                                <p class="font-medium">Tổng số phim mới đã import: <?php echo $result['summary']['total_imported']; ?></p>
-                                <p class="font-medium">Tổng số phim đã cập nhật: <?php echo $result['summary']['total_updated']; ?></p>
-                                <p class="font-medium">Tổng số phim đã bỏ qua: <?php echo $result['summary']['total_skipped']; ?></p>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <?php if (isset($result['pages']) && !empty($result['pages'])): ?>
-                            <h4 class="text-md font-medium text-gray-700 mb-3">Chi tiết từng trang:</h4>
-                            
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trang</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tổng phim</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Import mới</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cập nhật</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bỏ qua</th>
-                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lỗi</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        <?php foreach ($result['pages'] as $pageResult): ?>
-                                            <tr class="hover:bg-gray-50">
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo $pageResult['page']; ?></td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900"><?php echo $pageResult['total']; ?></td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600"><?php echo $pageResult['imported']; ?></td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-600"><?php echo $pageResult['updated']; ?></td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm text-yellow-600"><?php echo $pageResult['skipped']; ?></td>
-                                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                                    <?php if (!empty($pageResult['errors'])): ?>
-                                                        <button type="button" class="text-red-600 hover:text-red-900 mr-3" onclick="togglePageDetails(<?php echo $pageResult['page']; ?>)">
-                                                            <?php echo count($pageResult['errors']); ?> lỗi
-                                                        </button>
-                                                    <?php else: ?>
-                                                        <span class="text-gray-500">Không có lỗi</span>
-                                                    <?php endif; ?>
-                                                </td>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-bordered table-hover" id="queueTable">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Danh mục</th>
+                                                <th>Trạng thái</th>
+                                                <th>Tiến độ</th>
+                                                <th>Đã import</th>
+                                                <th>Đã cập nhật</th>
+                                                <th>Đã bỏ qua</th>
+                                                <th>Thời gian</th>
                                             </tr>
-                                            <?php if (!empty($pageResult['errors'])): ?>
-                                                <tr id="pageDetails<?php echo $pageResult['page']; ?>" class="hidden bg-red-50">
-                                    <td colspan="6" class="px-6 py-4">
-                                                        <div class="text-sm text-red-700">
-                                                            <h6 class="font-medium mb-2">Chi tiết lỗi:</h6>
-                                                            <ul class="list-disc pl-5 space-y-1">
-                                                                <?php foreach ($pageResult['errors'] as $error): ?>
-                                                                    <li><?php echo htmlspecialchars($error); ?></li>
-                                                                <?php endforeach; ?>
-                                                            </ul>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            <?php endif; ?>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody id="queueTableBody">
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        <?php endif; ?>
-                    <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
-                <?php endif; ?>
-    
+            </div>
+        </div>
+    </div>
+</div>
+
 <?php require_once 'footer.php'; ?>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Import Form
-            const importForm = document.getElementById('importForm');
-            const progressSection = document.getElementById('progressSection');
-            const importProgress = document.getElementById('importProgress');
-            const currentPage = document.getElementById('currentPage');
-            const currentMovie = document.getElementById('currentMovie');
-            const importedCountEl = document.getElementById('importedCount');
-            const updatedCountEl = document.getElementById('updatedCount');
-            const skippedCountEl = document.getElementById('skippedCount');
-            const elapsedTime = document.getElementById('elapsedTime');
-            const estimatedTime = document.getElementById('estimatedTime');
-            const statusMessage = document.getElementById('statusMessage');
-            
-            let startTime;
-            let timerInterval;
-            let progressInterval;
-            let totalPages;
-            let totalMoviesToProcess;
-            let processedMovies = 0;
-            let importedMovies = 0;
-            let updatedMovies = 0;
-            let skippedMovies = 0;
-            
-            importForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                progressSection.style.display = 'block';
-                
-                const startPage = parseInt(document.getElementById('start_page').value);
-                const endPage = parseInt(document.getElementById('end_page').value);
-                const limit = parseInt(document.getElementById('limit').value);
-                
-                totalPages = endPage - startPage + 1;
-                totalMoviesToProcess = totalPages * limit;
-                
-                processedMovies = 0;
-                importedMovies = 0;
-                updatedMovies = 0;
-                skippedMovies = 0;
-                startTime = new Date();
-                
-                clearInterval(timerInterval);
-                timerInterval = setInterval(updateTimer, 1000);
-                
-                updateProgressUI(0, 0, 0);
-                statusMessage.textContent = 'Đang bắt đầu...';
-                
-                const formData = new FormData(importForm);
-                
-                fetch('', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    const newBody = doc.body;
-                    document.body.innerHTML = newBody.innerHTML;
-                    
-                    clearInterval(timerInterval);
-                    statusMessage.textContent = 'Hoàn tất!';
-                    progressSection.style.display = 'none';
-                })
-                .catch(error => {
-                    clearInterval(timerInterval);
-                    statusMessage.textContent = 'Lỗi: ' + error.message;
-                    progressSection.style.display = 'none';
-                    console.error('Fetch error:', error);
-                    alert('Có lỗi xảy ra trong quá trình xử lý. Vui lòng kiểm tra Console.');
-                });
-            });
-            
-            function updateProgressUI(percent, currentPageNum, currentMovieNumInPage) {
-                importProgress.style.width = percent + '%';
-                importProgress.textContent = percent + '%';
-                importProgress.setAttribute('aria-valuenow', percent);
-                
-                currentPage.textContent = `Trang: ${currentPageNum}/${totalPages}`;
-                importedCountEl.textContent = `Đã import mới: ${importedMovies} phim`;
-                updatedCountEl.textContent = `Đã cập nhật: ${updatedMovies} phim`;
-                skippedCountEl.textContent = `Đã bỏ qua: ${skippedMovies} phim`;
-            }
-            
-            function updateTimer() {
-                const now = new Date();
-                const elapsed = Math.floor((now - startTime) / 1000);
-                
-                elapsedTime.textContent = `Đã trải qua: ${formatTime(elapsed)}`;
-                
-                estimatedTime.textContent = `Thời gian còn lại: Đang tính toán...`;
-            }
-            
-            function formatTime(seconds) {
-                if (seconds < 60) {
-                    return `${seconds} giây`;
-                } else if (seconds < 3600) {
-                    const minutes = Math.floor(seconds / 60);
-                    const remainingSeconds = seconds % 60;
-                    return `${minutes} phút ${remainingSeconds} giây`;
-                } else {
-                    const hours = Math.floor(seconds / 3600);
-                    const minutes = Math.floor((seconds % 3600) / 60);
-                    return `${hours} giờ ${minutes} phút`;
-                }
-            }
-        });
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const importForm = document.getElementById('importForm');
+    const progressSection = document.getElementById('progressSection');
+    const importProgress = document.getElementById('importProgress');
+    const currentPage = document.getElementById('currentPage');
+    const currentMovie = document.getElementById('currentMovie');
+    const importedCount = document.getElementById('importedCount');
+    const updatedCount = document.getElementById('updatedCount');
+    const skippedCount = document.getElementById('skippedCount');
+    const elapsedTime = document.getElementById('elapsedTime');
+    const statusMessage = document.getElementById('statusMessage');
+    const queueTableBody = document.getElementById('queueTableBody');
 
-        function togglePageDetails(pageNum) {
-            const detailsRow = document.getElementById(`pageDetails${pageNum}`);
-            if (detailsRow) {
-                if (detailsRow.classList.contains('hidden')) {
-                    document.querySelectorAll('[id^="pageDetails"]').forEach(row => {
-                        if (row.id !== `pageDetails${pageNum}`) {
-                            row.classList.add('hidden');
-                        }
-                    });
-                    detailsRow.classList.remove('hidden');
-                } else {
-                    detailsRow.classList.add('hidden');
-                }
-            }
+    let startTime;
+    let timerInterval;
+    let updateInterval;
+
+    // Handle form submission
+    importForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const useQueue = formData.get('use_queue') === 'on';
+        
+        if (useQueue) {
+            // Submit form normally for queue processing
+            this.submit();
+        } else {
+            // Show progress section for direct processing
+            progressSection.style.display = 'block';
+            startTime = new Date();
+            resetCounters();
+            startTimer();
+            
+            // Submit form with fetch for direct processing
+            fetch('', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(html => {
+                stopTimer();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Update page with new content
+                document.body.innerHTML = doc.body.innerHTML;
+                
+                // Show completion message
+                statusMessage.textContent = 'Import hoàn tất!';
+                statusMessage.className = 'alert alert-success';
+            })
+            .catch(error => {
+                stopTimer();
+                console.error('Error:', error);
+                statusMessage.textContent = 'Có lỗi xảy ra: ' + error.message;
+                statusMessage.className = 'alert alert-danger';
+            });
         }
-    </script>
+    });
+
+    // Queue status polling
+    function updateQueueStatus() {
+        fetch('check_queue_status.php')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                updateQueueTable(data.tasks);
+            }
+        })
+        .catch(error => console.error('Error updating queue status:', error));
+    }
+
+    function updateQueueTable(tasks) {
+        queueTableBody.innerHTML = tasks.map(task => `
+            <tr>
+                <td>${task.id}</td>
+                <td>${task.category}</td>
+                <td>
+                    <span class="badge badge-${getStatusBadgeClass(task.status)}">
+                        ${getStatusText(task.status)}
+                    </span>
+                </td>
+                <td>
+                    <div class="progress">
+                        <div class="progress-bar bg-${getStatusBadgeClass(task.status)}" 
+                             role="progressbar" 
+                             style="width: ${task.progress}%"
+                             aria-valuenow="${task.progress}" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                            ${task.progress}%
+                        </div>
+                    </div>
+                </td>
+                <td>${task.stats.imported}</td>
+                <td>${task.stats.updated}</td>
+                <td>${task.stats.skipped}</td>
+                <td>${formatDateTime(task.created_at)}</td>
+            </tr>
+        `).join('');
+    }
+
+    function getStatusBadgeClass(status) {
+        const classes = {
+            'pending': 'warning',
+            'processing': 'info',
+            'completed': 'success',
+            'failed': 'danger'
+        };
+        return classes[status] || 'secondary';
+    }
+
+    function getStatusText(status) {
+        const texts = {
+            'pending': 'Chờ xử lý',
+            'processing': 'Đang xử lý',
+            'completed': 'Hoàn thành',
+            'failed': 'Lỗi'
+        };
+        return texts[status] || status;
+    }
+
+    function formatDateTime(dateStr) {
+        const date = new Date(dateStr);
+        return date.toLocaleString('vi-VN');
+    }
+
+    function resetCounters() {
+        importProgress.style.width = '0%';
+        importProgress.textContent = '0%';
+        currentPage.textContent = 'Trang: 0/0';
+        currentMovie.textContent = 'Đang xử lý: -';
+        importedCount.textContent = 'Đã import mới: 0 phim';
+        updatedCount.textContent = 'Đã cập nhật: 0 phim';
+        skippedCount.textContent = 'Đã bỏ qua: 0 phim';
+        elapsedTime.textContent = 'Thời gian đã trôi qua: 0:00';
+    }
+
+    function startTimer() {
+        timerInterval = setInterval(updateTimer, 1000);
+        updateInterval = setInterval(updateQueueStatus, 5000);
+    }
+
+    function stopTimer() {
+        clearInterval(timerInterval);
+        clearInterval(updateInterval);
+    }
+
+    function updateTimer() {
+        const now = new Date();
+        const elapsed = Math.floor((now - startTime) / 1000);
+        elapsedTime.textContent = `Thời gian đã trôi qua: ${formatTime(elapsed)}`;
+    }
+
+    function formatTime(seconds) {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        
+        if (hours > 0) {
+            return `${hours}:${padZero(minutes)}:${padZero(secs)}`;
+        }
+        return `${minutes}:${padZero(secs)}`;
+    }
+
+    function padZero(num) {
+        return num.toString().padStart(2, '0');
+    }
+
+    // Handle queue checkbox
+    document.getElementById('useQueue').addEventListener('change', function() {
+        const updateExisting = document.getElementById('updateExisting');
+        if (this.checked) {
+            updateExisting.checked = true;
+            updateExisting.disabled = true;
+        } else {
+            updateExisting.disabled = false;
+        }
+    });
+
+    // Start queue status polling
+    updateQueueStatus();
+    setInterval(updateQueueStatus, 5000);
+});
+</script>
