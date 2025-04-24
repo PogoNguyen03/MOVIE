@@ -31,6 +31,17 @@
 				</div>
 			</li>
 		</ul>
+<<<<<<< HEAD
+=======
+		{if condition="$maccms.links_count gt 0"}
+			<div class="footer-links mb-2" style="font-size: 0.5rem; line-height: 1.6;">
+				{volist name="$maccms.links" id="vo" key="k"}
+				<a href="{$vo.link_url}" target="_blank" style="margin: 0 5px; color: #bbb; text-decoration: none;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#bbb'">{$vo.link_name}</a>
+				{if $k < $maccms.links_count} | {/if}
+				{/volist}
+			</div>
+			{/if}
+>>>>>>> brach-link-friend
 		<div class="fo_t">
 			<p>Trang web này không cung cấp bất kỳ dịch vụ tải lên hoặc lưu trữ tài nguyên nào, tất cả nội dung được tự động thu thập từ nguồn trên mạng đã được nêu ra.</p>
 			<p>Nếu nội dung có trong trang này vô ý vi phạm quyền của công ty bạn, vui lòng thông báo qua <a href="mailto:{$maccms.site_email}">{$maccms.site_email}</a>, chúng tôi sẽ xử lý và xóa nó sớm nhất, xin cảm ơn!</p>

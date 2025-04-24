@@ -74,6 +74,14 @@ class All extends Controller
         $maccms['vod_extend_year'] = $GLOBALS['config']['app']['vod_extend_year'];
         $maccms['vod_extend_weekday'] = $GLOBALS['config']['app']['vod_extend_weekday'];
         $maccms['actor_extend_area'] = $GLOBALS['config']['app']['actor_extend_area'];
+<<<<<<< HEAD
+=======
+        
+        // Thêm liên kết vào maccms
+        $footer_links = mac_get_footer_links();
+        $maccms['links'] = $footer_links;
+        $maccms['links_count'] = count($footer_links);
+>>>>>>> brach-link-friend
 
         $maccms['http_type'] = $GLOBALS['http_type'];
         $maccms['http_url'] = $GLOBALS['http_type']. ''.$_SERVER['SERVER_NAME'].($_SERVER["SERVER_PORT"]==80 ? '' : ':'.$_SERVER["SERVER_PORT"]).$_SERVER["REQUEST_URI"];

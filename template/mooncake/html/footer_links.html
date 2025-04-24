@@ -1,0 +1,14 @@
+{include file="public/include/links"}
+
+{if $maccms.links|@count gt 0}
+<div class="footer-links">
+    <div class="container">
+        <div class="foot-links">
+            {volist name="$maccms.links" id="vo"}
+            <a href="{$vo.url}" target="_blank">{$vo.name}</a>
+            {if !$vo@last} | {/if}
+            {/volist}
+        </div>
+    </div>
+</div>
+{/if} 

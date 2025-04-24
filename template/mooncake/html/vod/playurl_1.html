@@ -25,7 +25,11 @@
                     {maccms:foreach name=":array_reverse($vo.urls)" id="vo2" key="key2"}
                     {if $key2 elt 30}
                     <li {if condition="$param.sid eq $vo.sid && $param.nid eq $vo2.nid"} class="active conch-0{$key +1}" {/if}>
+<<<<<<< HEAD
                         <a href="{:mac_url_vod_play($obj,['sid'=>$vo.sid,'nid'=>$vo2.nid])}">{$vo2.name}</a>
+=======
+                        <a href="{:mac_url_vod_play($obj,['sid'=>$vo.sid,'nid'=>$vo2.nid])}">{:str_replace(['Thứ','tập'],'',trim($vo2.name))}</a>
+>>>>>>> brach-link-friend
                     </li>
                     {/if}
                     {/maccms:foreach}
@@ -38,7 +42,11 @@
         <ul class="content_playlist clearfix">
             {maccms:foreach name=":array_reverse($vo.urls)" id="vo2" key="key2"}
             <li {if condition="$param.sid eq $vo.sid && $param.nid eq $vo2.nid"} class="active conch-0{$key +1}" {/if}>
+<<<<<<< HEAD
                 <a href="{:mac_url_vod_play($obj,['sid'=>$vo.sid,'nid'=>$vo2.nid])}">{$vo2.name}</a>
+=======
+                <a href="{:mac_url_vod_play($obj,['sid'=>$vo.sid,'nid'=>$vo2.nid])}">{:str_replace(['Thứ','tập'],'',trim($vo2.name))}</a>
+>>>>>>> brach-link-friend
             </li>
             {/maccms:foreach}
         </ul>
