@@ -24,7 +24,16 @@ $pageTitle = 'Import Phim';
 require_once 'layout.php';
 
 // Function to make HTTP request with cURL
-function makeRequest($url, $headers = []) {
+function makeRequest($url, $headers = [], $retries = 3, $delay = 1) {
+    $attempt = 0;
+    
+    do {
+        // Add delay between retries
+        if ($attempt > 0) {
+            sleep($delay * $attempt); // Tăng thời gian sleep theo số lần thử
+            error_log("Retry attempt $attempt for URL: $url");
+        }
+        
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -39,6 +48,14 @@ function makeRequest($url, $headers = []) {
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
     curl_close($ch);
+        
+        // Nếu thành công hoặc lỗi khác 429, thoát vòng lặp
+        if ($httpCode === 200 || ($httpCode !== 429 && $httpCode !== 0)) {
+            break;
+        }
+        
+        $attempt++;
+    } while ($attempt < $retries);
     
     if ($error) {
         return ['error' => "Lỗi cURL: " . $error];
@@ -217,7 +234,7 @@ function determineTypeId($category) {
 }
 
 // Function to fetch movie details from API
-function fetchMovieDetails($slug) {
+function fetchMovieDetails($slug, $maxRetries = 3) {
     // Chuẩn hóa slug trước khi gọi API
     $slug = normalizeSlug($slug);
     $url = API_BASE_URL . "/film/" . $slug;
@@ -225,7 +242,7 @@ function fetchMovieDetails($slug) {
     // Log URL để debug
     error_log("Fetching movie details from URL: " . $url);
     
-    $response = makeRequest($url);
+    $response = makeRequest($url, [], $maxRetries, 2);
     
     if (isset($response['data'])) {
         $data = json_decode($response['data'], true);
@@ -240,6 +257,12 @@ function fetchMovieDetails($slug) {
     } else {
         // Log lỗi API
         error_log("API error for movie: " . $slug . " - " . ($response['error'] ?? 'Unknown error'));
+        
+        // Nếu lỗi là HTTP 429, ghi log chi tiết hơn
+        if (strpos(($response['error'] ?? ''), '429') !== false) {
+            error_log("Rate limit exceeded (HTTP 429). Consider increasing delay between requests.");
+        }
+        
     return null;
     }
 }
@@ -261,9 +284,9 @@ function importMovieToDB($movie, $pdo, $existingVodId = null) {
         
         // Prepare episode data
         $episodeData = [];
-        $playFrom = 'ngm3u8'; // Mặc định
+        $playFrom = 'ngm3u8'; // Luôn sử dụng ngm3u8, không lấy từ server_name nữa
+        
         if (!empty($episodeInfo)) {
-            $playFrom = $episodeInfo[0]['server_name'] ?? 'ngm3u8'; // Lấy server_name từ tập đầu tiên nếu có
         foreach ($episodeInfo as $episode) {
             // Nếu là phim lẻ (type_id = 2), sử dụng server_name làm tên tập
             if ($typeId == 2) {
@@ -436,6 +459,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $limit = isset($_POST['limit']) ? (int)$_POST['limit'] : 10;
     $update_existing = isset($_POST['update_existing']) && $_POST['update_existing'] === '1'; // Đổi tên biến
     $category = isset($_POST['category']) ? $_POST['category'] : 'phim-moi-cap-nhat';
+    $delay_between_requests = isset($_POST['delay']) ? (int)$_POST['delay'] : 2; // Thêm delay giữa các request
     
     // Validate category
     if (!array_key_exists($category, $movieCategories)) {
@@ -468,6 +492,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 // Process each page
                 for ($page = $startPage; $page <= $endPage; $page++) {
+                    // Thêm delay giữa các trang
+                    if ($page > $startPage) {
+                        sleep($delay_between_requests);
+                    }
+                    
                     $pageResult = [
                         'page' => $page,
                         'total' => 0,
@@ -495,8 +524,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             // Giới hạn số lượng phim xử lý trên mỗi trang
                             $moviesToProcess = array_slice($moviesOnPage, 0, $limit);
                             
-                            foreach ($moviesToProcess as $movie) {
+                            foreach ($moviesToProcess as $movieIndex => $movie) {
                                 $totalMoviesCount++; // Đếm tổng số phim đã xử lý
+                                
+                                // Log tiến trình
+                                error_log("Processing movie " . ($movieIndex + 1) . "/{$limit} on page {$page}/{$endPage}: {$movie['name']} (slug: {$movie['slug']})");
                                 
                                 // Check if movie already exists
                                 $stmt = $pdo->prepare("SELECT vod_id FROM mac_vod WHERE vod_sub = ?");
@@ -506,11 +538,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 // Fetch detailed movie information regardless of existence if update is enabled
                                 $movieDetails = null;
                                 if (!$existingMovie || $update_existing) {
+                                    // Thêm delay giữa các lần fetch movie details
+                                    if ($totalMoviesCount > 1) {
+                                        sleep($delay_between_requests);
+                                    }
                                     $movieDetails = fetchMovieDetails($movie['slug']);
                                 }
 
                                 if ($existingMovie) {
                                     if ($update_existing && $movieDetails) {
+                                        // Log cập nhật
+                                        error_log("Updating existing movie: {$movie['name']} (ID: {$existingMovie['vod_id']})");
+                                        
                                         // Cập nhật phim hiện có
                                         $importResult = importMovieToDB($movieDetails, $pdo, $existingMovie['vod_id']);
                                         if ($importResult['success']) {
@@ -520,11 +559,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                             $pageResult['errors'][] = "Lỗi cập nhật phim '{$movie['name']}': " . ($importResult['error'] ?? 'Unknown error');
                                         }
                                     } else {
+                                        // Log bỏ qua
+                                        error_log("Skipping existing movie: {$movie['name']} (ID: {$existingMovie['vod_id']})");
+                                        
                                         // Bỏ qua phim hiện có nếu không chọn cập nhật
                                         $pageResult['skipped']++;
                                         $skippedCount++;
                                     }
                                 } elseif ($movieDetails) {
+                                    // Log import phim mới
+                                    error_log("Importing new movie: {$movie['name']}");
+                                    
                                     // Import phim mới
                                     $importResult = importMovieToDB($movieDetails, $pdo);
                                     if ($importResult['success']) {
@@ -534,6 +579,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         $pageResult['errors'][] = "Lỗi import phim '{$movie['name']}': " . ($importResult['error'] ?? 'Unknown error');
                                     }
                                 } else {
+                                    // Log lỗi phim mới
+                                    error_log("Failed to fetch details for movie: {$movie['name']} (slug: {$movie['slug']})");
+                                     
                                     // Lỗi không lấy được chi tiết phim mới
                                      $pageResult['errors'][] = "Không thể lấy thông tin chi tiết phim mới '{$movie['name']}'.";
                                      error_log("Skipping movie '{$movie['name']}' (slug: {$movie['slug']}) because details could not be fetched.");
@@ -599,6 +647,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div>
                                 <label for="limit" class="block text-sm font-medium text-gray-700 mb-1">Số lượng phim tối đa trên mỗi trang:</label>
                                 <input type="number" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" id="limit" name="limit" value="10" min="1" required>
+                            </div>
+                            <div>
+                                <label for="delay" class="block text-sm font-medium text-gray-700 mb-1">Thời gian chờ giữa các request (giây):</label>
+                                <input type="number" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" id="delay" name="delay" value="2" min="1" max="10" required>
+                                <p class="mt-1 text-sm text-gray-500">Tăng thời gian này sẽ giúp tránh lỗi "Too Many Requests"</p>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Xử lý phim đã tồn tại:</label>

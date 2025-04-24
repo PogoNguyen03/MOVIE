@@ -120,7 +120,7 @@
 {elseif$maccms.aid==24}
   <title>{$obj.art_name|mac_default='404'}_{$obj.type.type_name} - {$maccms.site_name}</title>
   <meta name="keywords" content="{$obj.art_tag|mac_default=$obj.type.type_name},{$maccms.site_name}" />
-  <meta name="description" content="{$obj.art_content|mac_filter_html|mac_substring=110}" />
+  <meta name="description" content="{$obj.art_content|mac_filter_html}" />
   <meta itemprop="url" property="og:url" content="{:mac_url_art_detail($obj)}" />
   <meta itemprop="name" property="og:title" content="{$obj.art_name}_{$obj.type.type_name} - {$maccms.site_name}" />
   <meta itemprop="type" property="og:type" content="article" />
