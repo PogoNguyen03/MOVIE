@@ -43,6 +43,14 @@ class Art extends Base
         return $this->label_fetch('art/search');
     }
 
+    public function hot()
+    {
+        $param = mac_param_url();
+        $this->check_search($param);
+        $this->label_search($param);
+        return $this->label_fetch('art/hot');
+    }
+
     public function ajax_search()
     {
         $param = mac_param_url();

@@ -89,7 +89,13 @@
                 <ul class="pops_list">
                     <li><span class="hot_search_tit"><i class="iconfont">&#xe631;</i>&nbsp;Hot Search</span></li>
                     {maccms:foreach name=":explode(',',$maccms.search_hot)"}
+                    {if condition="$vo eq 'Phim đang hot'"}
+                    <li><a href="{:mac_url('vod/hot')}" class="hot_name">{$vo}</a></li>
+                    {elseif condition="$vo eq 'B&agrave;i viết đang hot' || $vo eq 'Bài viết đang hot'"}
+                    <li><a href="{:mac_url('art/hot')}" class="hot_name">{$vo}</a></li>
+                    {else /}
                     <li><a href="{:mac_url('vod/search',['wd'=>html_entity_decode($vo)])}" class="hot_name">{$vo}</a></li>
+                    {/if}
                     {/maccms:foreach}
                 </ul>
             </div>
