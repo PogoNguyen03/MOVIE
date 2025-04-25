@@ -408,7 +408,9 @@ class Vod extends Base {
         if ($vod_search_enabled) {
             // 开启搜索优化，查询并缓存Id
             $search_id_list = [];
-            if(!empty($wd)) {
+            if(!empty($wd)){
+                $wd = urldecode($wd);
+                $wd = htmlspecialchars($wd);
                 $role = 'vod_name';
                 if(!empty($GLOBALS['config']['app']['search_vod_rule'])){
                     $role .= '|'.$GLOBALS['config']['app']['search_vod_rule'];
@@ -460,7 +462,9 @@ class Vod extends Base {
             }
         } else {
             // 不开启搜索优化，使用默认条件
-            if(!empty($wd)) {
+            if(!empty($wd)){
+                $wd = urldecode($wd);
+                $wd = htmlspecialchars($wd);
                 $role = 'vod_name';
                 if(!empty($GLOBALS['config']['app']['search_vod_rule'])){
                     $role .= '|'.$GLOBALS['config']['app']['search_vod_rule'];

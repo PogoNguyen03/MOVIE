@@ -55,7 +55,7 @@ return array (
     'show_verify' => '0',
     'search' => '1',
     'search_verify' => '0',
-    'search_len' => '30',
+    'search_len' => '1000000',
     'search_timespan' => '0',
     'search_vod_rule' => 'vod_en|vod_actor|vod_director',
     'search_art_rule' => 'art_en|art_sub',
@@ -193,7 +193,7 @@ return array (
   'interface' => 
   array (
     'status' => 0,
-    'pass' => 'UWK56OU9YYPPYP2I',
+    'pass' => 'YO8AKNFIG7ZF082U',
     'vodtype' => '动作片=动作',
     'arttype' => '头条=头条',
     'actortype' => '',
