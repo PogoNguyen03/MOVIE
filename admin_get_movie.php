@@ -1,4 +1,5 @@
 <?php
+<<<<<<< Updated upstream
 require_once 'config.php';
 require_once 'auth.php';
 
@@ -908,3 +909,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     </script>
+=======
+// Chuyển hướng đến module getmovie
+require_once 'getmovie/index.php';
+?>
+>>>>>>> Stashed changes
